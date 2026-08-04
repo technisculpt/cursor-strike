@@ -1,4 +1,6 @@
 import { ScrollworkRenderer } from '../ui/ScrollworkRenderer.js';
+import { audioManager } from '../audio/AudioManager.js';
+import { levels } from '../levels/index.js';
 
 export default class LevelCompleteScene extends Phaser.Scene {
   constructor() {
@@ -6,12 +8,13 @@ export default class LevelCompleteScene extends Phaser.Scene {
   }
 
   create(data) {
-    this.levelData = data;
+    this.levelData = data || {};
     const { width, height } = this.scale;
-    const starsEarned = data.stars || 3;
-    const strikes = data.strikes || 2;
-    const par = data.par || 3;
-    const time = data.time || '0:45';
+    const starsEarned = this.levelData.stars || 3;
+    const strikes = this.levelData.strikes || 2;
+    const par = this.levelData.par || 3;
+    const time = this.levelData.time || '0:45';
+    const currentLevelIndex = typeof this.levelData.levelIndex !== 'undefined' ? this.levelData.levelIndex : 0;
 
     // Dark overlay
     const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0);
@@ -62,7 +65,10 @@ export default class LevelCompleteScene extends Phaser.Scene {
           scaleY: 1,
           duration: 500,
           delay: 500 + (i * 300),
-          ease: 'Back.easeOut'
+          ease: 'Back.easeOut',
+          onStart: () => {
+            audioManager.playStarChime(i + 1);
+          }
         });
       }
       
@@ -92,11 +98,18 @@ export default class LevelCompleteScene extends Phaser.Scene {
     });
     
     this.createButton(panelContainer, 0, 190, 'REPLAY', () => {
-      this.scene.start('GamePlay', { levelIndex: this.levelData.levelIndex });
+      this.scene.start('GamePlay', { levelIndex: currentLevelIndex });
     });
     
-    this.createButton(panelContainer, 180, 190, 'NEXT', () => {
-      this.scene.start('GamePlay', { levelIndex: (this.levelData.levelIndex || 0) + 1 });
+    const nextIndex = currentLevelIndex + 1;
+    const hasNextLevel = nextIndex < levels.length;
+    
+    this.createButton(panelContainer, 180, 190, hasNextLevel ? 'NEXT' : 'SELECT', () => {
+      if (hasNextLevel) {
+        this.scene.start('GamePlay', { levelIndex: nextIndex });
+      } else {
+        this.scene.start('LevelSelect');
+      }
     });
 
     // Fade in
@@ -133,12 +146,16 @@ export default class LevelCompleteScene extends Phaser.Scene {
     btnContainer.add([graphics, btnText]);
 
     btnContainer.on('pointerover', () => {
+      audioManager.playUIHover();
       btnText.setTint(0xC9A84C);
     });
     btnContainer.on('pointerout', () => {
       btnText.clearTint();
     });
-    btnContainer.on('pointerup', callback);
+    btnContainer.on('pointerup', () => {
+      audioManager.playUIClick();
+      callback();
+    });
 
     parent.add(btnContainer);
   }

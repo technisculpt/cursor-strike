@@ -1,6 +1,5 @@
 import { ScrollworkRenderer } from '../ui/ScrollworkRenderer.js';
-// Try to import audioManager if it exists, otherwise we'll fall back to this.sound
-// import { audioManager } from '../managers/audioManager.js';
+import { audioManager } from '../audio/AudioManager.js';
 
 export default class MainMenuScene extends Phaser.Scene {
     constructor() {
@@ -93,8 +92,7 @@ export default class MainMenuScene extends Phaser.Scene {
         btnContainer.on('pointerover', () => {
             this.tweens.add({ targets: btnContainer, scaleX: 1.05, scaleY: 1.05, duration: 150 });
             btnText.setTint(0xC9A84C);
-            // Play hover sound if possible
-            if (this.sound.get('hover')) this.sound.play('hover');
+            audioManager.playUIHover();
         });
 
         btnContainer.on('pointerout', () => {
@@ -103,8 +101,7 @@ export default class MainMenuScene extends Phaser.Scene {
         });
 
         btnContainer.on('pointerup', () => {
-            // Play click sound if possible
-            if (this.sound.get('click')) this.sound.play('click');
+            audioManager.playUIClick();
             callback();
         });
     }

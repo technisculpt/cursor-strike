@@ -18,8 +18,15 @@ export default class GamePlayScene extends Phaser.Scene {
     }
 
     create() {
-        this.level = levels[this.currentLevelIndex];
+        this.level = levels[this.currentLevelIndex] || levels[0];
         this.strikeCount = 0;
+        this.isLevelCompleted = false;
+
+        // Cleanup audio on shutdown
+        this.events.once('shutdown', () => {
+            audioManager.stopRolling();
+            audioManager.stopTimerTick();
+        });
 
         // HUD
         this.hud = new HUD(this, {
@@ -36,16 +43,44 @@ export default class GamePlayScene extends Phaser.Scene {
         // PauseMenu
         this.pauseMenu = new PauseMenu(this, {
             onResume: () => { this.scene.resume(); },
-            onRestart: () => { this.scene.restart({ levelIndex: this.currentLevelIndex }); },
-            onQuit: () => { this.scene.start('MainMenu'); }
+            onRestart: () => { 
+                audioManager.stopRolling();
+                audioManager.stopTimerTick();
+                this.scene.restart({ levelIndex: this.currentLevelIndex }); 
+            },
+            onQuit: () => { 
+                audioManager.stopRolling();
+                audioManager.stopTimerTick();
+                this.scene.start('MainMenu'); 
+            }
         });
 
         // Graphics setup
+        this.decorationGraphics = this.add.graphics();
         this.ballGraphics = this.add.graphics();
         this.cursorGraphics = this.add.graphics();
         this.terrainGraphics = this.add.graphics();
         this.dynamicGraphics = this.add.graphics(); // for platforms/hazards
         this.goalGraphics = this.add.graphics();
+
+        // Draw decorations
+        if (this.level.decorations) {
+            this.level.decorations.forEach(d => {
+                if (d.type === 'flag') {
+                    // Pole
+                    this.decorationGraphics.lineStyle(3, 0xC9A84C, 1);
+                    this.decorationGraphics.lineBetween(d.x, d.y, d.x, d.y - 40);
+                    // Banner
+                    this.decorationGraphics.fillStyle(0x8B0000, 1);
+                    this.decorationGraphics.fillTriangle(d.x, d.y - 40, d.x + 25, d.y - 30, d.x, d.y - 20);
+                } else if (d.type === 'cloud') {
+                    this.decorationGraphics.fillStyle(0xFFFFFF, 0.4);
+                    this.decorationGraphics.fillCircle(d.x, d.y, 25);
+                    this.decorationGraphics.fillCircle(d.x + 20, d.y - 10, 30);
+                    this.decorationGraphics.fillCircle(d.x + 40, d.y, 25);
+                }
+            });
+        }
 
         // Draw static terrain once
         this.terrainGraphics.lineStyle(2, 0x8B7355, 1);
@@ -140,7 +175,14 @@ export default class GamePlayScene extends Phaser.Scene {
                 callback: () => {
                     this.timeRemaining--;
                     if (this.hud) this.hud.updateTime(this.timeRemaining);
-                    if (this.timeRemaining <= 0) this.scene.restart({ levelIndex: this.currentLevelIndex });
+                    if (this.timeRemaining <= 10 && this.timeRemaining > 0) {
+                        audioManager.startTimerTick(1 - (this.timeRemaining / 10));
+                    }
+                    if (this.timeRemaining <= 0) {
+                        audioManager.stopTimerTick();
+                        audioManager.stopRolling();
+                        this.scene.restart({ levelIndex: this.currentLevelIndex });
+                    }
                 },
                 loop: true
             });
@@ -148,6 +190,8 @@ export default class GamePlayScene extends Phaser.Scene {
 
         // Collisions
         this.matter.world.on('collisionstart', (event) => {
+            if (this.isLevelCompleted) return;
+
             for (let i = 0; i < event.pairs.length; i++) {
                 const { bodyA, bodyB } = event.pairs[i];
                 
@@ -159,21 +203,34 @@ export default class GamePlayScene extends Phaser.Scene {
                     if (this.hud) this.hud.updateStrikes(this.strikeCount);
                     
                     const speed = Math.sqrt(this.cursorPhysics.vx**2 + this.cursorPhysics.vy**2);
-                    if (audioManager && audioManager.playImpact) {
-                        audioManager.playImpact(Math.min(speed / 30, 1));
+                    audioManager.playImpact(Math.min(speed / 25, 1));
+                }
+
+                // Ball hits terrain wall
+                const isBallCollision = (bodyA === this.ball || bodyB === this.ball);
+                const isNotCursorOrGoal = (bodyA !== this.cursorPhysics.body && bodyB !== this.cursorPhysics.body && bodyA !== this.goalSensor && bodyB !== this.goalSensor && bodyA.label !== 'hazard' && bodyB.label !== 'hazard');
+                if (isBallCollision && isNotCursorOrGoal) {
+                    const ballVel = Math.sqrt(this.ball.velocity.x**2 + this.ball.velocity.y**2);
+                    if (ballVel > 1) {
+                        audioManager.playWallHit(Math.min(ballVel / 15, 1));
                     }
                 }
 
                 // Ball hits goal
                 if ((bodyA === this.goalSensor && bodyB === this.ball) ||
                     (bodyB === this.goalSensor && bodyA === this.ball)) {
+                    audioManager.playGoalScored();
                     this.handleLevelComplete();
+                    break;
                 }
 
                 // Ball hits hazard
                 if ((bodyA.label === 'hazard' && bodyB === this.ball) ||
                     (bodyB.label === 'hazard' && bodyA === this.ball)) {
+                    audioManager.stopRolling();
+                    audioManager.stopTimerTick();
                     this.scene.restart({ levelIndex: this.currentLevelIndex });
+                    break;
                 }
             }
         });
@@ -207,16 +264,36 @@ export default class GamePlayScene extends Phaser.Scene {
     }
 
     update(time, delta) {
+        if (this.isLevelCompleted) return;
+
         if (this.cursorPhysics && this.input.activePointer) {
             this.cursorPhysics.update(this.input.activePointer);
         }
 
-        // Draw ball
+        // Draw ball & rotation indicator (showing rotational physics spin I = 1/2 M r^2)
+        const bx = this.ball.position.x;
+        const by = this.ball.position.y;
+        const angle = this.ball.angle;
         this.ballGraphics.clear();
         this.ballGraphics.fillStyle(0xFFFFF0, 1); // Ivory ball
-        this.ballGraphics.fillCircle(this.ball.position.x, this.ball.position.y, 15);
-        this.ballGraphics.lineStyle(2, 0xC9A84C, 0.5);
-        this.ballGraphics.strokeCircle(this.ball.position.x, this.ball.position.y, 15);
+        this.ballGraphics.fillCircle(bx, by, 15);
+        this.ballGraphics.lineStyle(2, 0xC9A84C, 0.8);
+        this.ballGraphics.strokeCircle(bx, by, 15);
+        
+        // Rotation stripe line
+        this.ballGraphics.lineStyle(2, 0x8B0000, 0.8);
+        this.ballGraphics.beginPath();
+        this.ballGraphics.moveTo(bx + Math.cos(angle) * 3, by + Math.sin(angle) * 3);
+        this.ballGraphics.lineTo(bx + Math.cos(angle) * 12, by + Math.sin(angle) * 12);
+        this.ballGraphics.strokePath();
+
+        // Ball rolling sound update based on speed
+        const ballSpeed = Math.sqrt(this.ball.velocity.x**2 + this.ball.velocity.y**2);
+        if (ballSpeed > 0.5) {
+            audioManager.startRolling(Math.min(ballSpeed / 12, 1));
+        } else {
+            audioManager.stopRolling();
+        }
 
         // Draw cursor
         this.cursorGraphics.clear();
@@ -232,7 +309,8 @@ export default class GamePlayScene extends Phaser.Scene {
 
         // Update moving platforms
         this.platformBodies.forEach(p => {
-            p.progress += (p.config.speed || 100) * 0.001 * p.direction * (delta / 16.66);
+            const speed = p.config.speed || 2;
+            p.progress += speed * 0.002 * p.direction * (delta / 16.66);
             if (p.progress >= 1 || p.progress <= 0) p.direction *= -1;
             p.progress = Math.max(0, Math.min(1, p.progress));
             const path = p.config.path;
@@ -248,10 +326,21 @@ export default class GamePlayScene extends Phaser.Scene {
             this.dynamicGraphics.strokeRect(pos.x - p.config.width / 2, pos.y - p.config.height / 2, p.config.width, p.config.height);
         });
 
-        // Draw hazards
+        // Update moving hazards
         this.dynamicGraphics.fillStyle(0xFF0000, 0.8);
         this.dynamicGraphics.lineStyle(2, 0x8B0000, 1);
         this.hazardBodies.forEach(h => {
+            if (h.config.patrolPath && h.config.patrolPath.length >= 2 && (h.config.speed || 0) > 0) {
+                const speed = h.config.speed || 2;
+                h.progress += speed * 0.002 * h.direction * (delta / 16.66);
+                if (h.progress >= 1 || h.progress <= 0) h.direction *= -1;
+                h.progress = Math.max(0, Math.min(1, h.progress));
+                const path = h.config.patrolPath;
+                const newX = path[0].x + (path[1].x - path[0].x) * h.progress;
+                const newY = path[0].y + (path[1].y - path[0].y) * h.progress;
+                this.matter.body.setPosition(h.body, { x: newX, y: newY });
+            }
+
             const pos = h.body.position;
             const size = h.config.type === 'bird' ? 20 : (h.config.type === 'crusher' ? 40 : 30);
             this.dynamicGraphics.fillRect(pos.x - size / 2, pos.y - size / 2, size, size);
@@ -260,6 +349,8 @@ export default class GamePlayScene extends Phaser.Scene {
 
         if (this.ball.position.y > 800) {
             // Ball fell off screen
+            audioManager.stopRolling();
+            audioManager.stopTimerTick();
             this.scene.restart({ levelIndex: this.currentLevelIndex });
         }
     }
@@ -271,8 +362,29 @@ export default class GamePlayScene extends Phaser.Scene {
     }
 
     handleLevelComplete() {
+        if (this.isLevelCompleted) return;
+        this.isLevelCompleted = true;
+
+        audioManager.stopRolling();
+        audioManager.stopTimerTick();
+
         const starsEarned = this.strikeCount <= this.level.par ? 3 : 
                             this.strikeCount <= this.level.par + 2 ? 2 : 1;
+        
+        // Save level progress to localStorage
+        try {
+            const unlocked = parseInt(localStorage.getItem('cursorstrike_unlocked') || '1', 10);
+            if (this.currentLevelIndex + 2 > unlocked) {
+                localStorage.setItem('cursorstrike_unlocked', (this.currentLevelIndex + 2).toString());
+            }
+            const currentStars = parseInt(localStorage.getItem(`cursorstrike_stars_${this.currentLevelIndex}`) || '0', 10);
+            if (starsEarned > currentStars) {
+                localStorage.setItem(`cursorstrike_stars_${this.currentLevelIndex}`, starsEarned.toString());
+            }
+        } catch (e) {
+            // LocalStorage might be restricted
+        }
+
         this.scene.start('LevelComplete', { 
             levelIndex: this.currentLevelIndex,
             strikes: this.strikeCount,

@@ -1,4 +1,5 @@
 import { ScrollworkRenderer } from './ScrollworkRenderer.js';
+import { audioManager } from '../audio/AudioManager.js';
 
 export class PauseMenu {
   constructor(scene, options = {}) {
@@ -88,6 +89,7 @@ export class PauseMenu {
     btnContainer.add([graphics, btnText]);
 
     btnContainer.on('pointerover', () => {
+      audioManager.playUIHover();
       this.scene.tweens.add({ targets: btnContainer, scaleX: 1.05, scaleY: 1.05, duration: 150 });
       btnText.setTint(0xC9A84C);
     });
@@ -95,7 +97,10 @@ export class PauseMenu {
       this.scene.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 150 });
       btnText.clearTint();
     });
-    btnContainer.on('pointerup', callback);
+    btnContainer.on('pointerup', () => {
+      audioManager.playUIClick();
+      callback();
+    });
 
     parent.add(btnContainer);
   }

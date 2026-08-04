@@ -1,0 +1,29 @@
+{
+  "name": "cursor-strike",
+  "version": "1.0.0",
+  "description": "CursorStrike - A 2D physics arcade web game using Phaser 3 and Matter.js withfoliate scrollwork aesthetic",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "serve": "node server.js",
+    "start": "node server.js",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3000"
+  },
+  "keywords": [
+    "phaser3",
+    "matterjs",
+    "physics",
+    "game",
+    "cursor-strike"
+  ],
+  "author": "CursorStrike Team",
+  "license": "MIT",
+  "dependencies": {
+    "phaser": "^3.60.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

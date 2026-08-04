@@ -1,4 +1,6 @@
 import { ScrollworkRenderer } from '../ui/ScrollworkRenderer.js';
+import { audioManager } from '../audio/AudioManager.js';
+import { levels } from '../levels/index.js';
 
 export default class LevelSelectScene extends Phaser.Scene {
   constructor() {
@@ -23,6 +25,14 @@ export default class LevelSelectScene extends Phaser.Scene {
       color: '#C9A84C'
     }).setOrigin(0.5);
 
+    // Progression from localStorage
+    let unlockedLevels = 1;
+    try {
+      unlockedLevels = parseInt(localStorage.getItem('cursorstrike_unlocked') || '1', 10);
+    } catch (e) {
+      unlockedLevels = 1;
+    }
+
     // Grid config
     const rows = 2;
     const cols = 5;
@@ -37,10 +47,16 @@ export default class LevelSelectScene extends Phaser.Scene {
         const x = startX + c * (cardWidth + 30);
         const y = startY + r * (cardHeight + 40);
         
-        // Mock data
-        const isLocked = levelNum > 3;
-        const stars = isLocked ? 0 : Math.floor(Math.random() * 4);
-        const levelName = `Level ${levelNum}`;
+        const isLocked = levelNum > unlockedLevels;
+        let stars = 0;
+        try {
+          stars = parseInt(localStorage.getItem(`cursorstrike_stars_${levelNum - 1}`) || '0', 10);
+        } catch (e) {
+          stars = 0;
+        }
+
+        const levelData = levels[levelNum - 1];
+        const levelName = levelData ? levelData.name : `Level ${levelNum}`;
 
         this.createLevelCard(x, y, cardWidth, cardHeight, levelNum, levelName, stars, isLocked);
       }
@@ -82,7 +98,7 @@ export default class LevelSelectScene extends Phaser.Scene {
     // Name
     elements.push(this.add.text(0, 20, name, {
       fontFamily: '"Cinzel", serif',
-      fontSize: '18px',
+      fontSize: '16px',
       color: isLocked ? '#888888' : '#C9A84C'
     }).setOrigin(0.5));
 
@@ -102,6 +118,7 @@ export default class LevelSelectScene extends Phaser.Scene {
       container.setInteractive({ useHandCursor: true });
       
       container.on('pointerover', () => {
+        audioManager.playUIHover();
         this.tweens.add({
           targets: container,
           y: y + height/2 - 10,
@@ -120,7 +137,7 @@ export default class LevelSelectScene extends Phaser.Scene {
       });
       
       container.on('pointerup', () => {
-        console.log(`Select level ${levelNum}`);
+        audioManager.playUIClick();
         this.scene.start('GamePlay', { levelIndex: levelNum - 1 });
       });
     }
@@ -152,7 +169,12 @@ export default class LevelSelectScene extends Phaser.Scene {
 
     container.add([graphics, text]);
 
+    container.on('pointerover', () => {
+      audioManager.playUIHover();
+    });
+
     container.on('pointerup', () => {
+      audioManager.playUIClick();
       this.scene.start('MainMenu');
     });
   }
