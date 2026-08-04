@@ -1,0 +1,24 @@
+export const IMPACT_SETTINGS = {
+    CLICK_DURATION: 0.003,
+    CLICK_FREQ_MIN: 3000,
+    CLICK_FREQ_MAX: 6000,
+    CLICK_Q: 5,
+    BODY_FREQ_BASE: 800,
+    BODY_DECAY: 0.08,
+    OVERTONE_FREQ: 3200,
+    OVERTONE_DECAY: 0.03,
+    DURATION: 0.15
+};
+
+export const WALL_HIT_SETTINGS = {
+    BODY_FREQ: 500,
+    BODY_DECAY: 0.15,
+};
+
+export const NOTES = {
+    C5: 523.25,
+    E5: 659.25,
+    G5: 783.99,
+    CLICK_FREQ: 1000,
+    HOVER_FREQ: 2000
+};

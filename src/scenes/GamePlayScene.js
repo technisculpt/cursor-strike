@@ -1,0 +1,263 @@
+import { CursorPhysics, CATEGORY_ENVIRONMENT, CATEGORY_BALL } from '../physics/CursorPhysics.js';
+import { createBall } from '../physics/BallPhysics.js';
+import { levels } from '../levels/index.js';
+import { HUD } from '../ui/HUD.js';
+import { PauseMenu } from '../ui/PauseMenu.js';
+import { audioManager } from '../audio/AudioManager.js';
+
+export default class GamePlayScene extends Phaser.Scene {
+    constructor() {
+        super('GamePlay');
+        this.currentLevelIndex = 0;
+    }
+
+    init(data) {
+        if (data && typeof data.levelIndex !== 'undefined') {
+            this.currentLevelIndex = data.levelIndex;
+        }
+    }
+
+    create() {
+        this.level = levels[this.currentLevelIndex];
+        this.strikeCount = 0;
+
+        // HUD
+        this.hud = new HUD(this, {
+            levelName: this.level.name,
+            strikes: 0,
+            par: this.level.par,
+            timeLimit: this.level.timeLimit
+        });
+
+        // PauseMenu
+        this.pauseMenu = new PauseMenu(this, {
+            onResume: () => { this.scene.resume(); },
+            onRestart: () => { this.scene.restart({ levelIndex: this.currentLevelIndex }); },
+            onQuit: () => { this.scene.start('MainMenu'); }
+        });
+
+        // Graphics setup
+        this.ballGraphics = this.add.graphics();
+        this.cursorGraphics = this.add.graphics();
+        this.terrainGraphics = this.add.graphics();
+        this.dynamicGraphics = this.add.graphics(); // for platforms/hazards
+        this.goalGraphics = this.add.graphics();
+
+        // Draw static terrain once
+        this.terrainGraphics.lineStyle(2, 0x8B7355, 1);
+        this.terrainGraphics.fillStyle(0x5C4033, 1);
+        
+        // Terrain physics and static graphics
+        this.level.terrain.forEach(t => {
+            if (t.type === 'rectangle') {
+                const angleRad = (t.angle || 0) * (Math.PI / 180);
+                
+                // Physics body
+                this.matter.add.rectangle(t.x, t.y, t.width, t.height, {
+                    isStatic: true,
+                    angle: angleRad,
+                    collisionFilter: { category: CATEGORY_ENVIRONMENT, mask: CATEGORY_BALL },
+                    friction: 0.3,
+                    restitution: 0.5,
+                    label: t.label || 'terrain'
+                });
+
+                // Graphics (drawing rotated rectangle)
+                this.terrainGraphics.save();
+                this.terrainGraphics.translateCanvas(t.x, t.y);
+                this.terrainGraphics.rotateCanvas(angleRad);
+                this.terrainGraphics.fillRect(-t.width / 2, -t.height / 2, t.width, t.height);
+                this.terrainGraphics.strokeRect(-t.width / 2, -t.height / 2, t.width, t.height);
+                this.terrainGraphics.restore();
+            }
+        });
+
+        // Moving platforms
+        this.platformBodies = [];
+        if (this.level.movingPlatforms) {
+            this.level.movingPlatforms.forEach(p => {
+                const body = this.matter.add.rectangle(p.x, p.y, p.width, p.height, {
+                    isStatic: true,
+                    collisionFilter: { category: CATEGORY_ENVIRONMENT, mask: CATEGORY_BALL },
+                    friction: 0.5,
+                    label: 'moving_platform'
+                });
+                this.platformBodies.push({ body, config: p, progress: 0, direction: 1 });
+            });
+        }
+
+        // Hazards
+        this.hazardBodies = [];
+        if (this.level.hazards) {
+            this.level.hazards.forEach(h => {
+                const size = h.type === 'bird' ? 20 : (h.type === 'crusher' ? 40 : 30);
+                const body = this.matter.add.rectangle(h.x, h.y, size, size, {
+                    isStatic: true,
+                    isSensor: true,
+                    label: 'hazard'
+                });
+                this.hazardBodies.push({ body, config: h, progress: 0, direction: 1 });
+            });
+        }
+
+        // Goal sensor
+        this.goalSensor = this.matter.add.rectangle(
+            this.level.goal.x, this.level.goal.y, 
+            this.level.goal.width, this.level.goal.height,
+            { isStatic: true, isSensor: true, label: 'goal' }
+        );
+
+        // Ball & Cursor Physics
+        this.ball = createBall(this, this.level.ballSpawn.x, this.level.ballSpawn.y);
+        this.cursorPhysics = new CursorPhysics(this);
+        
+        // Timer
+        if (this.level.timeLimit > 0) {
+            this.timeRemaining = this.level.timeLimit;
+            this.time.addEvent({
+                delay: 1000,
+                callback: () => {
+                    this.timeRemaining--;
+                    if (this.hud) this.hud.updateTime(this.timeRemaining);
+                    if (this.timeRemaining <= 0) this.scene.restart({ levelIndex: this.currentLevelIndex });
+                },
+                loop: true
+            });
+        }
+
+        // Collisions
+        this.matter.world.on('collisionstart', (event) => {
+            for (let i = 0; i < event.pairs.length; i++) {
+                const { bodyA, bodyB } = event.pairs[i];
+                
+                // Cursor hits ball
+                if ((bodyA === this.cursorPhysics.body && bodyB === this.ball) ||
+                    (bodyB === this.cursorPhysics.body && bodyA === this.ball)) {
+                    this.cursorPhysics.applyImpulse(this.ball);
+                    this.strikeCount++;
+                    if (this.hud) this.hud.updateStrikes(this.strikeCount);
+                    
+                    const speed = Math.sqrt(this.cursorPhysics.vx**2 + this.cursorPhysics.vy**2);
+                    if (audioManager && audioManager.playImpact) {
+                        audioManager.playImpact(Math.min(speed / 30, 1));
+                    }
+                }
+
+                // Ball hits goal
+                if ((bodyA === this.goalSensor && bodyB === this.ball) ||
+                    (bodyB === this.goalSensor && bodyA === this.ball)) {
+                    this.handleLevelComplete();
+                }
+
+                // Ball hits hazard
+                if ((bodyA.label === 'hazard' && bodyB === this.ball) ||
+                    (bodyB.label === 'hazard' && bodyA === this.ball)) {
+                    this.scene.restart({ levelIndex: this.currentLevelIndex });
+                }
+            }
+        });
+
+        // Pulsing goal effect
+        this.tweens.addCounter({
+            from: 0.3,
+            to: 0.8,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            onUpdate: (tween) => {
+                const alpha = tween.getValue();
+                this.goalGraphics.clear();
+                this.goalGraphics.fillStyle(0x00FF00, alpha);
+                this.goalGraphics.fillRect(
+                    this.level.goal.x - this.level.goal.width/2, 
+                    this.level.goal.y - this.level.goal.height/2, 
+                    this.level.goal.width, 
+                    this.level.goal.height
+                );
+                this.goalGraphics.lineStyle(2, 0x00FF00, 1);
+                this.goalGraphics.strokeRect(
+                    this.level.goal.x - this.level.goal.width/2, 
+                    this.level.goal.y - this.level.goal.height/2, 
+                    this.level.goal.width, 
+                    this.level.goal.height
+                );
+            }
+        });
+    }
+
+    update(time, delta) {
+        if (this.cursorPhysics && this.input.activePointer) {
+            this.cursorPhysics.update(this.input.activePointer);
+        }
+
+        // Draw ball
+        this.ballGraphics.clear();
+        this.ballGraphics.fillStyle(0xFFFFF0, 1); // Ivory ball
+        this.ballGraphics.fillCircle(this.ball.position.x, this.ball.position.y, 15);
+        this.ballGraphics.lineStyle(2, 0xC9A84C, 0.5);
+        this.ballGraphics.strokeCircle(this.ball.position.x, this.ball.position.y, 15);
+
+        // Draw cursor
+        this.cursorGraphics.clear();
+        this.cursorGraphics.fillStyle(0xC9A84C, 0.3); // Golden glow cursor
+        this.cursorGraphics.fillCircle(this.cursorPhysics.body.position.x, this.cursorPhysics.body.position.y, 20);
+        this.cursorGraphics.lineStyle(2, 0xC9A84C, 0.8);
+        this.cursorGraphics.strokeCircle(this.cursorPhysics.body.position.x, this.cursorPhysics.body.position.y, 20);
+
+        // Dynamic Graphics (Platforms & Hazards)
+        this.dynamicGraphics.clear();
+        this.dynamicGraphics.lineStyle(2, 0x8B7355, 1);
+        this.dynamicGraphics.fillStyle(0x7C5033, 1);
+
+        // Update moving platforms
+        this.platformBodies.forEach(p => {
+            p.progress += (p.config.speed || 100) * 0.001 * p.direction * (delta / 16.66);
+            if (p.progress >= 1 || p.progress <= 0) p.direction *= -1;
+            p.progress = Math.max(0, Math.min(1, p.progress));
+            const path = p.config.path;
+            if (path && path.length >= 2) {
+                const newX = path[0].x + (path[1].x - path[0].x) * p.progress;
+                const newY = path[0].y + (path[1].y - path[0].y) * p.progress;
+                this.matter.body.setPosition(p.body, { x: newX, y: newY });
+            }
+            
+            // Draw platform
+            const pos = p.body.position;
+            this.dynamicGraphics.fillRect(pos.x - p.config.width / 2, pos.y - p.config.height / 2, p.config.width, p.config.height);
+            this.dynamicGraphics.strokeRect(pos.x - p.config.width / 2, pos.y - p.config.height / 2, p.config.width, p.config.height);
+        });
+
+        // Draw hazards
+        this.dynamicGraphics.fillStyle(0xFF0000, 0.8);
+        this.dynamicGraphics.lineStyle(2, 0x8B0000, 1);
+        this.hazardBodies.forEach(h => {
+            const pos = h.body.position;
+            const size = h.config.type === 'bird' ? 20 : (h.config.type === 'crusher' ? 40 : 30);
+            this.dynamicGraphics.fillRect(pos.x - size / 2, pos.y - size / 2, size, size);
+            this.dynamicGraphics.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size);
+        });
+
+        if (this.ball.position.y > 800) {
+            // Ball fell off screen
+            this.scene.restart({ levelIndex: this.currentLevelIndex });
+        }
+    }
+
+    formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    handleLevelComplete() {
+        const starsEarned = this.strikeCount <= this.level.par ? 3 : 
+                            this.strikeCount <= this.level.par + 2 ? 2 : 1;
+        this.scene.start('LevelComplete', { 
+            levelIndex: this.currentLevelIndex,
+            strikes: this.strikeCount,
+            par: this.level.par,
+            stars: starsEarned,
+            time: this.level.timeLimit > 0 ? this.formatTime(this.level.timeLimit - this.timeRemaining) : '—'
+        });
+    }
+}
