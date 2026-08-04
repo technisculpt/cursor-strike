@@ -10,7 +10,7 @@ export class HUD {
     this.par = options.par || 3;
     this.time = options.time || 0;
     this.hasTimer = options.timeLimit > 0;
-    this.onPause = options.onPause || (() => {});
+    this.onMenu = options.onMenu || (() => {});
 
     // Create a container for HUD elements to manage depth
     this.container = scene.add.container(0, 0);
@@ -28,9 +28,9 @@ export class HUD {
 
     // Right: Strikes
     const rightGraphics = scene.add.graphics();
-    ScrollworkRenderer.drawCartouche(rightGraphics, width - 300, 20, 220, 50);
+    ScrollworkRenderer.drawCartouche(rightGraphics, width - 300, 20, 280, 50);
     
-    this.strikesText = scene.add.text(width - 190, 45, `Strikes: ${this.strikes} / Par: ${this.par}`, {
+    this.strikesText = scene.add.text(width - 160, 45, `Strikes: ${this.strikes} / Par: ${this.par}`, {
       fontFamily: '"Cinzel", serif',
       fontSize: '20px',
       color: '#FFFFF0'
@@ -48,33 +48,31 @@ export class HUD {
       }).setOrigin(0.5);
     }
 
-    // Pause Button
-    const pauseBtn = scene.add.container(width - 40, 45);
-    pauseBtn.setSize(40, 40);
-    pauseBtn.setInteractive({ useHandCursor: true });
+    // Bottom-Right: MENU Button
+    const { height } = scene.scale;
+    const menuBtn = scene.add.container(width - 80, height - 40);
+    menuBtn.setSize(120, 44);
+    menuBtn.setInteractive({ useHandCursor: true });
     
-    const pauseGraphics = scene.add.graphics();
-    ScrollworkRenderer.drawOrnateFrame(pauseGraphics, -20, -20, 40, 40, {
-      color: 0xC9A84C,
-      lineWidth: 2,
-      padding: 2,
-      bgColor: 0x1B4332,
-      bgAlpha: 1
-    });
+    const menuGraphics = scene.add.graphics();
+    ScrollworkRenderer.drawCartouche(menuGraphics, -60, -22, 120, 44);
     
-    const pauseIcon = scene.add.text(0, 0, '⏸', {
+    const menuText = scene.add.text(0, 0, 'MENU', {
+      fontFamily: '"Cinzel", serif',
       fontSize: '20px',
       color: '#C9A84C'
     }).setOrigin(0.5);
 
-    pauseBtn.add([pauseGraphics, pauseIcon]);
-    pauseBtn.on('pointerup', this.onPause);
+    menuBtn.add([menuGraphics, menuText]);
+    menuBtn.on('pointerdown', () => {
+      this.onMenu();
+    });
 
     // Add all elements to the container
     this.container.add([
       leftGraphics, this.levelText,
       rightGraphics, this.strikesText,
-      pauseBtn
+      menuBtn
     ]);
 
     if (this.hasTimer) {

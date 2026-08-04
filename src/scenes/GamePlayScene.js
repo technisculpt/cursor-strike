@@ -2,7 +2,6 @@ import { CursorPhysics, CATEGORY_ENVIRONMENT, CATEGORY_BALL } from '../physics/C
 import { createBall } from '../physics/BallPhysics.js';
 import { levels } from '../levels/index.js';
 import { HUD } from '../ui/HUD.js';
-import { PauseMenu } from '../ui/PauseMenu.js';
 import { audioManager } from '../audio/AudioManager.js';
 
 export default class GamePlayScene extends Phaser.Scene {
@@ -28,30 +27,16 @@ export default class GamePlayScene extends Phaser.Scene {
             audioManager.stopTimerTick();
         });
 
-        // HUD
+        // HUD with bottom-right MENU button
         this.hud = new HUD(this, {
             levelName: this.level.name,
             strikes: 0,
             par: this.level.par,
             timeLimit: this.level.timeLimit,
-            onPause: () => {
-                this.scene.pause();
-                this.pauseMenu.show();
-            }
-        });
-
-        // PauseMenu
-        this.pauseMenu = new PauseMenu(this, {
-            onResume: () => { this.scene.resume(); },
-            onRestart: () => { 
+            onMenu: () => {
                 audioManager.stopRolling();
                 audioManager.stopTimerTick();
-                this.scene.restart({ levelIndex: this.currentLevelIndex }); 
-            },
-            onQuit: () => { 
-                audioManager.stopRolling();
-                audioManager.stopTimerTick();
-                this.scene.start('MainMenu'); 
+                this.scene.start('LevelSelect');
             }
         });
 
@@ -82,8 +67,8 @@ export default class GamePlayScene extends Phaser.Scene {
             });
         }
 
-        // Draw static terrain once
-        this.terrainGraphics.lineStyle(2, 0x8B7355, 1);
+        // Draw static terrain once (seamless brown, no intersecting border strokes)
+        this.terrainGraphics.lineStyle(0);
         this.terrainGraphics.fillStyle(0x5C4033, 1);
         
         // Terrain physics and static graphics
@@ -124,7 +109,6 @@ export default class GamePlayScene extends Phaser.Scene {
                 this.terrainGraphics.lineTo(corners[3].x, corners[3].y);
                 this.terrainGraphics.closePath();
                 this.terrainGraphics.fillPath();
-                this.terrainGraphics.strokePath();
             }
         });
 
@@ -195,17 +179,6 @@ export default class GamePlayScene extends Phaser.Scene {
             for (let i = 0; i < event.pairs.length; i++) {
                 const { bodyA, bodyB } = event.pairs[i];
                 
-                // Cursor hits ball
-                if ((bodyA === this.cursorPhysics.body && bodyB === this.ball) ||
-                    (bodyB === this.cursorPhysics.body && bodyA === this.ball)) {
-                    this.cursorPhysics.applyImpulse(this.ball);
-                    this.strikeCount++;
-                    if (this.hud) this.hud.updateStrikes(this.strikeCount);
-                    
-                    const speed = Math.sqrt(this.cursorPhysics.vx**2 + this.cursorPhysics.vy**2);
-                    audioManager.playImpact(Math.min(speed / 25, 1));
-                }
-
                 // Ball hits terrain wall
                 const isBallCollision = (bodyA === this.ball || bodyB === this.ball);
                 const isNotCursorOrGoal = (bodyA !== this.cursorPhysics.body && bodyB !== this.cursorPhysics.body && bodyA !== this.goalSensor && bodyB !== this.goalSensor && bodyA.label !== 'hazard' && bodyB.label !== 'hazard');
@@ -267,7 +240,13 @@ export default class GamePlayScene extends Phaser.Scene {
         if (this.isLevelCompleted) return;
 
         if (this.cursorPhysics && this.input.activePointer) {
-            this.cursorPhysics.update(this.input.activePointer);
+            const struck = this.cursorPhysics.update(this.input.activePointer, this.ball);
+            if (struck) {
+                this.strikeCount++;
+                if (this.hud) this.hud.updateStrikes(this.strikeCount);
+                const speed = Math.sqrt(this.cursorPhysics.vx**2 + this.cursorPhysics.vy**2);
+                audioManager.playImpact(Math.min(Math.max(speed / 20, 0.4), 1));
+            }
         }
 
         // Draw ball & rotation indicator (showing rotational physics spin I = 1/2 M r^2)
@@ -275,13 +254,13 @@ export default class GamePlayScene extends Phaser.Scene {
         const by = this.ball.position.y;
         const angle = this.ball.angle;
         this.ballGraphics.clear();
-        this.ballGraphics.fillStyle(0xFFFFF0, 1); // Ivory ball
-        this.ballGraphics.fillCircle(bx, by, 15);
-        this.ballGraphics.lineStyle(2, 0xC9A84C, 0.8);
-        this.ballGraphics.strokeCircle(bx, by, 15);
+        this.ballGraphics.fillStyle(0x8B4513, 1); // Rich brown cue ball
+        this.ballGraphics.fillCircle(bx, by, 16);
+        this.ballGraphics.lineStyle(2, 0xC9A84C, 0.9);
+        this.ballGraphics.strokeCircle(bx, by, 16);
         
         // Rotation stripe line
-        this.ballGraphics.lineStyle(2, 0x8B0000, 0.8);
+        this.ballGraphics.lineStyle(2, 0xFFD700, 0.9);
         this.ballGraphics.beginPath();
         this.ballGraphics.moveTo(bx + Math.cos(angle) * 3, by + Math.sin(angle) * 3);
         this.ballGraphics.lineTo(bx + Math.cos(angle) * 12, by + Math.sin(angle) * 12);
@@ -295,17 +274,19 @@ export default class GamePlayScene extends Phaser.Scene {
             audioManager.stopRolling();
         }
 
-        // Draw cursor
+        // Draw cursor (white circle striker, bigger than brown ball)
+        const cx = this.cursorPhysics.body.position.x;
+        const cy = this.cursorPhysics.body.position.y;
         this.cursorGraphics.clear();
-        this.cursorGraphics.fillStyle(0xC9A84C, 0.3); // Golden glow cursor
-        this.cursorGraphics.fillCircle(this.cursorPhysics.body.position.x, this.cursorPhysics.body.position.y, 20);
-        this.cursorGraphics.lineStyle(2, 0xC9A84C, 0.8);
-        this.cursorGraphics.strokeCircle(this.cursorPhysics.body.position.x, this.cursorPhysics.body.position.y, 20);
+        this.cursorGraphics.fillStyle(0xFFFFFF, 0.5); // Translucent white circle
+        this.cursorGraphics.fillCircle(cx, cy, 26);
+        this.cursorGraphics.lineStyle(2.5, 0xFFD700, 0.9); // Gold border
+        this.cursorGraphics.strokeCircle(cx, cy, 26);
 
         // Dynamic Graphics (Platforms & Hazards)
         this.dynamicGraphics.clear();
-        this.dynamicGraphics.lineStyle(2, 0x8B7355, 1);
-        this.dynamicGraphics.fillStyle(0x7C5033, 1);
+        this.dynamicGraphics.lineStyle(0);
+        this.dynamicGraphics.fillStyle(0x5C4033, 1);
 
         // Update moving platforms
         this.platformBodies.forEach(p => {
@@ -323,7 +304,6 @@ export default class GamePlayScene extends Phaser.Scene {
             // Draw platform
             const pos = p.body.position;
             this.dynamicGraphics.fillRect(pos.x - p.config.width / 2, pos.y - p.config.height / 2, p.config.width, p.config.height);
-            this.dynamicGraphics.strokeRect(pos.x - p.config.width / 2, pos.y - p.config.height / 2, p.config.width, p.config.height);
         });
 
         // Update moving hazards

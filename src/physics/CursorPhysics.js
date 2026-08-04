@@ -5,10 +5,10 @@ export const CATEGORY_CURSOR = 0x0004;
 export class CursorPhysics {
     constructor(scene) {
         this.scene = scene;
-        this.radius = 20;
+        this.radius = 26; // White circle striker noticeably bigger than brown ball (16px)
         this.body = scene.matter.add.circle(0, 0, this.radius, {
             isStatic: false,
-            isSensor: true, // we detect collision manually but don't want physical push-back on cursor
+            isSensor: true,
             ignoreGravity: true,
             collisionFilter: {
                 category: CATEGORY_CURSOR,
@@ -22,10 +22,11 @@ export class CursorPhysics {
         this.prevY = 0;
         this.vx = 0;
         this.vy = 0;
+        this.lastStrikeTime = 0;
     }
 
-    update(pointer) {
-        if (!pointer) return;
+    update(pointer, ballBody) {
+        if (!pointer) return false;
         
         if (this.prevX === 0 && this.prevY === 0) {
             this.prevX = pointer.x;
@@ -39,21 +40,69 @@ export class CursorPhysics {
 
         this.prevX = pointer.x;
         this.prevY = pointer.y;
+
+        let strikeOccurred = false;
+        if (ballBody) {
+            const ballRadius = ballBody.circleRadius || 16;
+            const minDist = this.radius + ballRadius;
+            const dx = ballBody.position.x - pointer.x;
+            const dy = ballBody.position.y - pointer.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < minDist) {
+                // Calculate collision normal pointing away from cursor
+                const nx = dist > 0.001 ? dx / dist : 1;
+                const ny = dist > 0.001 ? dy / dist : 0;
+                
+                // Push ball out of overlap immediately (no clipping)
+                const overlap = minDist - dist;
+                this.scene.matter.body.setPosition(ballBody, {
+                    x: ballBody.position.x + nx * overlap,
+                    y: ballBody.position.y + ny * overlap
+                });
+
+                // Calculate strike speed and force transfer
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const now = this.scene.time ? this.scene.time.now : Date.now();
+
+                // Impulse velocity transfer
+                const targetVx = nx * Math.max(speed * 0.9, 6) + this.vx * 0.4;
+                const targetVy = ny * Math.max(speed * 0.9, 6) + this.vy * 0.4;
+
+                this.scene.matter.body.setVelocity(ballBody, {
+                    x: ballBody.velocity.x * 0.2 + targetVx * 0.8,
+                    y: ballBody.velocity.y * 0.2 + targetVy * 0.8
+                });
+
+                // Apply spin / torque
+                const torque = (this.vx * ny - this.vy * nx) * 0.05;
+                this.scene.matter.body.setAngularVelocity(ballBody, torque);
+
+                if (now - this.lastStrikeTime > 200) {
+                    this.lastStrikeTime = now;
+                    strikeOccurred = true;
+                }
+            }
+        }
+
+        return strikeOccurred;
     }
 
     applyImpulse(ballBody) {
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > 0.5) { // Threshold for meaningful strike
-            const forceMultiplier = 0.0012;
-            const throwBiasX = this.vx * forceMultiplier;
-            const throwBiasY = this.vy * forceMultiplier;
+        // Maintained for direct collision event triggers
+        const dx = ballBody.position.x - this.body.position.x;
+        const dy = ballBody.position.y - this.body.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const nx = dx / dist;
+        const ny = dy / dist;
 
-            // Apply force slightly offset from center to induce rotational spin I = 1/2 M r^2
-            const contactOffset = {
-                x: ballBody.position.x - (this.vx > 0 ? 5 : -5),
-                y: ballBody.position.y - (this.vy > 0 ? 5 : -5)
-            };
-            this.scene.matter.body.applyForce(ballBody, contactOffset, { x: throwBiasX, y: throwBiasY });
-        }
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        const targetVx = nx * Math.max(speed * 0.9, 6) + this.vx * 0.4;
+        const targetVy = ny * Math.max(speed * 0.9, 6) + this.vy * 0.4;
+
+        this.scene.matter.body.setVelocity(ballBody, {
+            x: targetVx,
+            y: targetVy
+        });
     }
 }
