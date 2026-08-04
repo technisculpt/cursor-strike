@@ -26,7 +26,11 @@ export default class GamePlayScene extends Phaser.Scene {
             levelName: this.level.name,
             strikes: 0,
             par: this.level.par,
-            timeLimit: this.level.timeLimit
+            timeLimit: this.level.timeLimit,
+            onPause: () => {
+                this.scene.pause();
+                this.pauseMenu.show();
+            }
         });
 
         // PauseMenu
@@ -62,13 +66,30 @@ export default class GamePlayScene extends Phaser.Scene {
                     label: t.label || 'terrain'
                 });
 
-                // Graphics (drawing rotated rectangle)
-                this.terrainGraphics.save();
-                this.terrainGraphics.translateCanvas(t.x, t.y);
-                this.terrainGraphics.rotateCanvas(angleRad);
-                this.terrainGraphics.fillRect(-t.width / 2, -t.height / 2, t.width, t.height);
-                this.terrainGraphics.strokeRect(-t.width / 2, -t.height / 2, t.width, t.height);
-                this.terrainGraphics.restore();
+                // Calculate rotated corners
+                const cx = t.x;
+                const cy = t.y;
+                const hw = t.width / 2;
+                const hh = t.height / 2;
+
+                const corners = [
+                    { x: -hw, y: -hh },
+                    { x: hw, y: -hh },
+                    { x: hw, y: hh },
+                    { x: -hw, y: hh }
+                ].map(p => ({
+                    x: cx + p.x * Math.cos(angleRad) - p.y * Math.sin(angleRad),
+                    y: cy + p.x * Math.sin(angleRad) + p.y * Math.cos(angleRad)
+                }));
+
+                this.terrainGraphics.beginPath();
+                this.terrainGraphics.moveTo(corners[0].x, corners[0].y);
+                this.terrainGraphics.lineTo(corners[1].x, corners[1].y);
+                this.terrainGraphics.lineTo(corners[2].x, corners[2].y);
+                this.terrainGraphics.lineTo(corners[3].x, corners[3].y);
+                this.terrainGraphics.closePath();
+                this.terrainGraphics.fillPath();
+                this.terrainGraphics.strokePath();
             }
         });
 
