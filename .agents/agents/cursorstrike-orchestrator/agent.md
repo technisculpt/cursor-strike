@@ -17,41 +17,34 @@ orchestrator:
 sub_orchestrators:
   - name: QA_Mentor_Claude
     model: claude-opus-4.6
-    role: Strict QA Gatekeeper & Vision Critic
+    role: High-Level Consultant & Final QA Gatekeeper
     responsibilities:
-      - Evaluate JSON outputs from the Self-QA loop.
-      - Pillar 1 (Static Analysis): Review linting reports.
-      - Pillar 2 (Robustness): Review automated unit test results for physics algorithms.
-      - Pillar 3 (Visual QA): Analyze canvas screenshots for UX/UI fidelity.
-      - Pillar 4 (Verification): Review Playwright automated playthrough screenshots.
-      - Reject subpar work with specific feedback or return STATUS: APPROVED.
+      - Final vision sign-off on pre-filtered candidate releases.
+      - Evaluate candidate deliverables after Gemini Assistant 2-3 step verification.
+      - Enforce high-level visual, physics, and gameplay standards.
+  - name: Gemini_PreQA_Checker
+    model: gemini-3.6-flash
+    role: Intermediary Assistant & Pre-QA Inspector
+    responsibilities:
+      - Perform 2-3 internal verification and polishing loops with Gemini creator subagents.
+      - Inspect code diffs, static analysis, level data contracts, and visual canvas layouts.
+      - Package verified candidate releases for QA_Mentor_Claude.
 subagents:
   - name: TechLead_Physics
     model: gemini-1.5-pro
     role: Senior Physics Engineer
-    focus: 
-      - Write core Phaser.js and Matter.js code.
-      - Implement precise momentum transfer for cursor-to-ball impacts.
-      - Write Playwright test scripts.
-      - Autonomously determine whether to run Playwright tests in a local headless browser or dynamically spin up a Docker container.
-  - name: GameDesign_Lead
+  - name: Gemini_LevelDesigner
     model: gemini-1.5-flash
-    role: Systems & Progression Designer
-  - name: UX_UI_Lead
+    role: Level Architect
+  - name: Gemini_UX_UI
     model: gemini-1.5-flash
-    role: Interface Designer
-  - name: LevelCreator
+    role: Interface & Aesthetic Designer
+  - name: Gemini_SoundDesigner
     model: gemini-1.5-flash
-    role: Level Designer
-  - name: SoundDesign_Agent
-    model: gemini-1.5-flash
-    role: Audio Engineer
+    role: Web Audio Specialist
   - name: Testing_Agent
     model: gemini-1.5-flash
     role: Automation Executioner
-    focus:
-      - Execute Playwright scripts and unit tests.
-      - Capture screenshots and error logs for QA_Mentor_Claude.
 ---
 
 # Global Project Context
