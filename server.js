@@ -26,6 +26,11 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
     let reqUrl = req.url.split('?')[0];
+    if (reqUrl === '/favicon.ico') {
+        res.writeHead(204, { 'Content-Type': 'image/x-icon' });
+        res.end();
+        return;
+    }
     if (reqUrl === '/') {
         reqUrl = '/index.html';
     }

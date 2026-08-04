@@ -69,7 +69,7 @@ export class ScrollworkRenderer {
     let p3 = rotatePoint(size, 0, rotation);
     
     graphics.moveTo(x + p0.x, y + p0.y);
-    graphics.bezierCurveTo(x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
+    graphics.cubicBezierTo(x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
     
     // Inner swirl
     p0 = rotatePoint(size * 0.2, size * 0.2, rotation);
@@ -78,7 +78,7 @@ export class ScrollworkRenderer {
     p3 = rotatePoint(size * 0.3, size * 0.4, rotation);
     
     graphics.moveTo(x + p0.x, y + p0.y);
-    graphics.bezierCurveTo(x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
+    graphics.cubicBezierTo(x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
 
     graphics.strokePath();
   }
@@ -92,9 +92,9 @@ export class ScrollworkRenderer {
     graphics.beginPath();
     graphics.moveTo(x, y);
     // Draw sweeping curve to center
-    graphics.bezierCurveTo(x + width * 0.25, y - 10, x + width * 0.4, y + 5, midX, y);
+    graphics.cubicBezierTo(x + width * 0.25, y - 10, x + width * 0.4, y + 5, midX, y);
     // Continue to right
-    graphics.bezierCurveTo(midX + width * 0.1, y - 5, x + width * 0.75, y + 10, x + width, y);
+    graphics.cubicBezierTo(midX + width * 0.1, y - 5, x + width * 0.75, y + 10, x + width, y);
     
     // Center diamond/leaf
     graphics.moveTo(midX, y - 5);
@@ -121,13 +121,13 @@ export class ScrollworkRenderer {
     // Left flourish
     graphics.beginPath();
     graphics.moveTo(x + r, y + 5);
-    graphics.bezierCurveTo(x, y - 10, x - 15, y + height / 2, x + r, y + height - 5);
+    graphics.cubicBezierTo(x, y - 10, x - 15, y + height / 2, x + r, y + height - 5);
     graphics.strokePath();
     
     // Right flourish
     graphics.beginPath();
     graphics.moveTo(x + width - r, y + 5);
-    graphics.bezierCurveTo(x + width, y - 10, x + width + 15, y + height / 2, x + width - r, y + height - 5);
+    graphics.cubicBezierTo(x + width, y - 10, x + width + 15, y + height / 2, x + width - r, y + height - 5);
     graphics.strokePath();
   }
 }
