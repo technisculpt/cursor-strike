@@ -1,7 +1,7 @@
 import { CATEGORY_ENVIRONMENT, CATEGORY_BALL, CATEGORY_CURSOR } from './CursorPhysics.js';
 
 export function createBall(scene, x, y) {
-    const radius = 15;
+    const radius = 24; // Equal size with cursor striker circle (24px)
     const ball = scene.matter.add.circle(x, y, radius, {
         restitution: 0.6,
         friction: 0.05,

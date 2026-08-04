@@ -5,7 +5,7 @@ export const CATEGORY_CURSOR = 0x0004;
 export class CursorPhysics {
     constructor(scene) {
         this.scene = scene;
-        this.radius = 26; // White circle striker noticeably bigger than brown ball (16px)
+        this.radius = 24; // Equal size with ball (24px)
         this.body = scene.matter.add.circle(0, 0, this.radius, {
             isStatic: false,
             isSensor: true,

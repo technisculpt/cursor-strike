@@ -109,6 +109,26 @@ export default class GamePlayScene extends Phaser.Scene {
                 this.terrainGraphics.lineTo(corners[3].x, corners[3].y);
                 this.terrainGraphics.closePath();
                 this.terrainGraphics.fillPath();
+            } else if (t.type === 'polygon' && t.points && t.points.length >= 3) {
+                const cx = t.points.reduce((s, p) => s + p.x, 0) / t.points.length;
+                const cy = t.points.reduce((s, p) => s + p.y, 0) / t.points.length;
+                const relPoints = t.points.map(p => ({ x: p.x - cx, y: p.y - cy }));
+
+                this.matter.add.fromVertices(cx, cy, relPoints, {
+                    isStatic: true,
+                    collisionFilter: { category: CATEGORY_ENVIRONMENT, mask: CATEGORY_BALL },
+                    friction: 0.3,
+                    restitution: 0.5,
+                    label: t.label || 'terrain'
+                });
+
+                this.terrainGraphics.beginPath();
+                this.terrainGraphics.moveTo(t.points[0].x, t.points[0].y);
+                for (let i = 1; i < t.points.length; i++) {
+                    this.terrainGraphics.lineTo(t.points[i].x, t.points[i].y);
+                }
+                this.terrainGraphics.closePath();
+                this.terrainGraphics.fillPath();
             }
         });
 
@@ -255,15 +275,15 @@ export default class GamePlayScene extends Phaser.Scene {
         const angle = this.ball.angle;
         this.ballGraphics.clear();
         this.ballGraphics.fillStyle(0x8B4513, 1); // Rich brown cue ball
-        this.ballGraphics.fillCircle(bx, by, 16);
+        this.ballGraphics.fillCircle(bx, by, 24);
         this.ballGraphics.lineStyle(2, 0xC9A84C, 0.9);
-        this.ballGraphics.strokeCircle(bx, by, 16);
+        this.ballGraphics.strokeCircle(bx, by, 24);
         
         // Rotation stripe line
-        this.ballGraphics.lineStyle(2, 0xFFD700, 0.9);
+        this.ballGraphics.lineStyle(2.5, 0xFFD700, 0.9);
         this.ballGraphics.beginPath();
-        this.ballGraphics.moveTo(bx + Math.cos(angle) * 3, by + Math.sin(angle) * 3);
-        this.ballGraphics.lineTo(bx + Math.cos(angle) * 12, by + Math.sin(angle) * 12);
+        this.ballGraphics.moveTo(bx + Math.cos(angle) * 4, by + Math.sin(angle) * 4);
+        this.ballGraphics.lineTo(bx + Math.cos(angle) * 18, by + Math.sin(angle) * 18);
         this.ballGraphics.strokePath();
 
         // Ball rolling sound update based on speed
@@ -274,14 +294,14 @@ export default class GamePlayScene extends Phaser.Scene {
             audioManager.stopRolling();
         }
 
-        // Draw cursor (white circle striker, bigger than brown ball)
+        // Draw cursor (white circle striker, equal size with cue ball)
         const cx = this.cursorPhysics.body.position.x;
         const cy = this.cursorPhysics.body.position.y;
         this.cursorGraphics.clear();
-        this.cursorGraphics.fillStyle(0xFFFFFF, 0.5); // Translucent white circle
-        this.cursorGraphics.fillCircle(cx, cy, 26);
+        this.cursorGraphics.fillStyle(0xFFFFFF, 0.65); // Crisp white circle
+        this.cursorGraphics.fillCircle(cx, cy, 24);
         this.cursorGraphics.lineStyle(2.5, 0xFFD700, 0.9); // Gold border
-        this.cursorGraphics.strokeCircle(cx, cy, 26);
+        this.cursorGraphics.strokeCircle(cx, cy, 24);
 
         // Dynamic Graphics (Platforms & Hazards)
         this.dynamicGraphics.clear();
