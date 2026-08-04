@@ -16,18 +16,19 @@ orchestrator:
     - Route tasks to Gemini subagents and pass their outputs to QA_Mentor_Claude.
 sub_orchestrators:
   - name: QA_Mentor_Claude
-    model: claude-opus-4.6
-    role: High-Level Consultant & Final QA Gatekeeper
+    model: claude-sonnet-4.6
+    role: High-Level Consultant, Deployment Architect & Final QA Gatekeeper
     responsibilities:
       - Final vision sign-off on pre-filtered candidate releases.
       - Evaluate candidate deliverables after Gemini Assistant 2-3 step verification.
-      - Enforce high-level visual, physics, and gameplay standards.
+      - Enforce high-level visual, physics, deployment, and gameplay standards in partnership with Gemini 3.6 Flash High.
   - name: Gemini_PreQA_Checker
     model: gemini-3.6-flash
-    role: Intermediary Assistant & Pre-QA Inspector
+    role: Intermediary Assistant, Pre-QA Inspector & Sonnet Cross-Checking Partner
     responsibilities:
+      - Partner with QA_Mentor_Claude (Sonnet) to double-check candidate code, server architecture, and QA feedback.
       - Perform 2-3 internal verification and polishing loops with Gemini creator subagents.
-      - Inspect code diffs, static analysis, level data contracts, and visual canvas layouts.
+      - Inspect code diffs, static analysis, level data contracts, web server configs, and visual canvas layouts.
       - Package verified candidate releases for QA_Mentor_Claude.
 subagents:
   - name: TechLead_Physics
