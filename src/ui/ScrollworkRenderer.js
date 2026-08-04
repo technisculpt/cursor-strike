@@ -1,4 +1,21 @@
 export class ScrollworkRenderer {
+  static drawCubicBezierCurve(graphics, p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, steps = 16) {
+    graphics.moveTo(p0x, p0y);
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const invT = 1 - t;
+      const invT2 = invT * invT;
+      const invT3 = invT2 * invT;
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const x = invT3 * p0x + 3 * invT2 * t * p1x + 3 * invT * t2 * p2x + t3 * p3x;
+      const y = invT3 * p0y + 3 * invT2 * t * p1y + 3 * invT * t2 * p2y + t3 * p3y;
+
+      graphics.lineTo(x, y);
+    }
+  }
+
   static drawOrnateFrame(graphics, x, y, width, height, options = {}) {
     const {
       color = 0xC9A84C,
@@ -45,14 +62,6 @@ export class ScrollworkRenderer {
   }
 
   static drawCornerFlourish(graphics, x, y, size, rotation) {
-    
-    // Move to corner, rotate
-    const transformX = x;
-    const transformY = y;
-    // Since Phaser 3 graphics doesn't have a simple push/pop transform for drawing paths directly easily in world space
-    // We'll compute the rotated points manually for simplicity, or just draw basic curves relative to the corner.
-    // For a robust implementation without transform stack, we use standard control points and rotate them.
-    
     const rotatePoint = (px, py, angle) => {
       return {
         x: px * Math.cos(angle) - py * Math.sin(angle),
@@ -61,15 +70,13 @@ export class ScrollworkRenderer {
     };
 
     // Draw a leaf/vine curve
-    // Starting at 0,0 (the corner)
     graphics.beginPath();
     let p0 = rotatePoint(0, size, rotation);
     let p1 = rotatePoint(size * 0.5, size * 0.8, rotation);
     let p2 = rotatePoint(size * 0.8, size * 0.5, rotation);
     let p3 = rotatePoint(size, 0, rotation);
     
-    graphics.moveTo(x + p0.x, y + p0.y);
-    graphics.cubicBezierTo(x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
+    this.drawCubicBezierCurve(graphics, x + p0.x, y + p0.y, x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
     
     // Inner swirl
     p0 = rotatePoint(size * 0.2, size * 0.2, rotation);
@@ -77,8 +84,7 @@ export class ScrollworkRenderer {
     p2 = rotatePoint(size * 0.6, size * 0.6, rotation);
     p3 = rotatePoint(size * 0.3, size * 0.4, rotation);
     
-    graphics.moveTo(x + p0.x, y + p0.y);
-    graphics.cubicBezierTo(x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
+    this.drawCubicBezierCurve(graphics, x + p0.x, y + p0.y, x + p1.x, y + p1.y, x + p2.x, y + p2.y, x + p3.x, y + p3.y);
 
     graphics.strokePath();
   }
@@ -90,11 +96,10 @@ export class ScrollworkRenderer {
     const midX = x + width / 2;
     
     graphics.beginPath();
-    graphics.moveTo(x, y);
     // Draw sweeping curve to center
-    graphics.cubicBezierTo(x + width * 0.25, y - 10, x + width * 0.4, y + 5, midX, y);
+    this.drawCubicBezierCurve(graphics, x, y, x + width * 0.25, y - 10, x + width * 0.4, y + 5, midX, y);
     // Continue to right
-    graphics.cubicBezierTo(midX + width * 0.1, y - 5, x + width * 0.75, y + 10, x + width, y);
+    this.drawCubicBezierCurve(graphics, midX, y, midX + width * 0.1, y - 5, x + width * 0.75, y + 10, x + width, y);
     
     // Center diamond/leaf
     graphics.moveTo(midX, y - 5);
@@ -120,14 +125,12 @@ export class ScrollworkRenderer {
     
     // Left flourish
     graphics.beginPath();
-    graphics.moveTo(x + r, y + 5);
-    graphics.cubicBezierTo(x, y - 10, x - 15, y + height / 2, x + r, y + height - 5);
+    this.drawCubicBezierCurve(graphics, x + r, y + 5, x, y - 10, x - 15, y + height / 2, x + r, y + height - 5);
     graphics.strokePath();
     
     // Right flourish
     graphics.beginPath();
-    graphics.moveTo(x + width - r, y + 5);
-    graphics.cubicBezierTo(x + width, y - 10, x + width + 15, y + height / 2, x + width - r, y + height - 5);
+    this.drawCubicBezierCurve(graphics, x + width - r, y + 5, x + width, y - 10, x + width + 15, y + height / 2, x + width - r, y + height - 5);
     graphics.strokePath();
   }
 }
