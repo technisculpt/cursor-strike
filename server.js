@@ -125,8 +125,12 @@ function startServerPhysicsRoom(room) {
     });
     Body.setInertia(ball, 0.5 * ball.mass * ballRadius * ballRadius);
 
-    const p1Puck = Bodies.circle(160, 640, 12, { isStatic: false, isSensor: true, ignoreGravity: true, label: 'p1_puck' });
-    const p2Puck = Bodies.circle(1120, 640, 12, { isStatic: false, isSensor: true, ignoreGravity: true, label: 'p2_puck' });
+    // Pucks are solid (no isSensor) so they physically push the ball.
+    // High frictionAir + isStatic:false lets us kinematically drive them each tick.
+    const p1Puck = Bodies.circle(160, 640, 12, { isStatic: false, frictionAir: 1, mass: 100, label: 'p1_puck' });
+    const p2Puck = Bodies.circle(1120, 640, 12, { isStatic: false, frictionAir: 1, mass: 100, label: 'p2_puck' });
+    Body.setInertia(p1Puck, Infinity);
+    Body.setInertia(p2Puck, Infinity);
 
     World.add(world, [
         topBorder, bottomBorder, leftBorder, rightBorder,
@@ -135,6 +139,11 @@ function startServerPhysicsRoom(room) {
 
     room.physics = { engine, world, ball, p1Puck, p2Puck, p1Goal, p2Goal };
     room.isMatchOver = false;
+    // Store latest puck inputs from clients
+    room.puckInput = {
+        p1: { x: 160, y: 640, vx: 0, vy: 0 },
+        p2: { x: 1120, y: 640, vx: 0, vy: 0 }
+    };
 
     Events.on(engine, 'collisionStart', (event) => {
         if (room.isMatchOver) return;
@@ -195,7 +204,23 @@ function startServerPhysicsRoom(room) {
 
     room.gameLoop = setInterval(() => {
         if (room.isMatchOver) return;
+
+        // Kinematically drive pucks to mouse positions BEFORE physics step.
+        // The velocity we set is what imparts momentum into the ball on contact.
+        const inp1 = room.puckInput.p1;
+        const inp2 = room.puckInput.p2;
+        Body.setPosition(p1Puck, { x: inp1.x, y: inp1.y });
+        Body.setVelocity(p1Puck, { x: inp1.vx, y: inp1.vy });
+        Body.setPosition(p2Puck, { x: inp2.x, y: inp2.y });
+        Body.setVelocity(p2Puck, { x: inp2.vx, y: inp2.vy });
+
         Engine.update(engine, 1000 / 60);
+
+        // After physics, re-lock puck positions again so they don't drift from ball impulse.
+        Body.setPosition(p1Puck, { x: inp1.x, y: inp1.y });
+        Body.setVelocity(p1Puck, { x: inp1.vx, y: inp1.vy });
+        Body.setPosition(p2Puck, { x: inp2.x, y: inp2.y });
+        Body.setVelocity(p2Puck, { x: inp2.vx, y: inp2.vy });
 
         const gameStateMsg = JSON.stringify({
             type: 'GAME_STATE',
@@ -279,12 +304,9 @@ wss.on('connection', (ws) => {
                 }
                 case 'SYNC_PUCK': {
                     const room = rooms.get(ws.roomId);
-                    if (room && room.physics) {
-                        const puckBody = ws.role === 'P1' ? room.physics.p1Puck : room.physics.p2Puck;
-                        if (puckBody) {
-                            Body.setPosition(puckBody, { x: data.x, y: data.y });
-                            Body.setVelocity(puckBody, { x: data.vx, y: data.vy });
-                        }
+                    if (room && room.puckInput) {
+                        const key = ws.role === 'P1' ? 'p1' : 'p2';
+                        room.puckInput[key] = { x: data.x, y: data.y, vx: data.vx, vy: data.vy };
                     }
                     break;
                 }
