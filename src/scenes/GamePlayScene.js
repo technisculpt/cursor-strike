@@ -311,14 +311,19 @@ export default class GamePlayScene extends Phaser.Scene {
             audioManager.stopRolling();
         }
 
-        // Draw cursor (white circle striker, equal size with cue ball)
+        // Draw cursor (white circle striker, half size of cue ball: 12px radius)
         const cx = this.cursorPhysics.body.position.x;
         const cy = this.cursorPhysics.body.position.y;
+
+        // Clamp visual rendering to canvas edge [12, 1268] x [12, 708] so puck NEVER disappears when mouse is on background
+        const drawX = Math.max(12, Math.min(1268, cx));
+        const drawY = Math.max(12, Math.min(708, cy));
+
         this.cursorGraphics.clear();
-        this.cursorGraphics.fillStyle(0xFFFFFF, 0.65); // Crisp white circle
-        this.cursorGraphics.fillCircle(cx, cy, 24);
-        this.cursorGraphics.lineStyle(2.5, 0xFFD700, 0.9); // Gold border
-        this.cursorGraphics.strokeCircle(cx, cy, 24);
+        this.cursorGraphics.fillStyle(0xFFFFFF, 0.9); // Crisp white circle
+        this.cursorGraphics.fillCircle(drawX, drawY, 12);
+        this.cursorGraphics.lineStyle(2, 0xFFD700, 1); // Gold border
+        this.cursorGraphics.strokeCircle(drawX, drawY, 12);
 
         // Dynamic Graphics (Platforms & Hazards)
         this.dynamicGraphics.clear();
