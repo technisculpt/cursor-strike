@@ -124,53 +124,74 @@ export class ScrollworkRenderer {
     graphics.fillCircle(x + width - height / 2, y + height / 2, 4);
   }
 
-  static drawGolfHoleGoal(graphics, x, y, radius = 30, options = {}) {
+  static drawGolfHoleGoal(graphics, x, y, width = 60, height = 40, options = {}) {
     const {
       rimColor = 0xC9A84C,       // Brass/gold rim
-      cupColor = 0x0A190E,       // Dark cup depression
+      cupColor = 0x07150B,       // Dark cup interior cutout
       pinColor = 0xFFD700,       // Gold pin pole
-      pennantColor = 0x00FF00,   // Green flag pennant (or Red 0xFF3333 for P1, Blue 0x3388FF for P2)
+      pennantColor = 0x00FF00,   // Flag pennant (Green, P1 Red, P2 Blue)
       pulseAlpha = 1.0
     } = options;
 
-    // Outer grass ring shadow
-    graphics.fillStyle(0x000000, 0.4);
-    graphics.fillCircle(x, y + 2, radius + 4);
+    const halfW = width / 2;
 
-    // Brass/gold cup rim ring
-    graphics.lineStyle(4, rimColor, 1);
-    graphics.fillStyle(cupColor, 1);
-    graphics.fillCircle(x, y, radius);
-    graphics.strokeCircle(x, y, radius);
-
-    // Inner cup depth gradient / shadow
-    graphics.fillStyle(0x000000, 0.6);
-    graphics.fillCircle(x, y, radius * 0.65);
-
-    // Glowing target center ring
-    graphics.lineStyle(2, pennantColor, pulseAlpha);
-    graphics.strokeCircle(x, y, radius * 0.45);
-
-    // Golf Pin Pole (vertical brass rod)
-    const poleHeight = 45;
-    graphics.lineStyle(3, pinColor, 1);
+    // 1. Dark U-shaped cup interior cutout fill
+    graphics.fillStyle(cupColor, 0.95);
     graphics.beginPath();
-    graphics.moveTo(x, y);
-    graphics.lineTo(x, y - poleHeight);
-    graphics.strokePath();
-
-    // Pin Pole Base Cap
-    graphics.fillStyle(pinColor, 1);
-    graphics.fillCircle(x, y, 4);
-
-    // Pennant Flag at top of pin
-    graphics.fillStyle(pennantColor, 1);
-    graphics.beginPath();
-    graphics.moveTo(x, y - poleHeight);
-    graphics.lineTo(x + 22, y - poleHeight + 8);
-    graphics.lineTo(x, y - poleHeight + 16);
+    graphics.moveTo(x - halfW, y);
+    graphics.lineTo(x - halfW, y + height - 8);
+    graphics.arc(x - halfW + 8, y + height - 8, 8, Math.PI, Math.PI / 2, true);
+    graphics.lineTo(x + halfW - 8, y + height);
+    graphics.arc(x + halfW - 8, y + height - 8, 8, Math.PI / 2, 0, true);
+    graphics.lineTo(x + halfW, y);
     graphics.closePath();
     graphics.fillPath();
+
+    // 2. Inner cup depth shadow
+    graphics.fillStyle(0x000000, 0.6);
+    graphics.fillRect(x - halfW + 4, y + 4, width - 8, height - 8);
+
+    // 3. Glowing target indicator line at bottom of cup
+    graphics.lineStyle(2.5, pennantColor, pulseAlpha);
+    graphics.lineBetween(x - halfW + 8, y + height - 4, x + halfW - 8, y + height - 4);
+
+    // 4. Brass Rim Lips on Left & Right platform edges
+    graphics.lineStyle(3, rimColor, 1);
+    graphics.beginPath();
+    graphics.moveTo(x - halfW - 6, y);
+    graphics.lineTo(x - halfW, y);
+    graphics.lineTo(x - halfW, y + height);
+    graphics.lineTo(x + halfW, y + height);
+    graphics.lineTo(x + halfW, y);
+    graphics.lineTo(x + halfW + 6, y);
+    graphics.strokePath();
+
+    // Brass rim caps
+    graphics.fillStyle(rimColor, 1);
+    graphics.fillCircle(x - halfW, y, 4);
+    graphics.fillCircle(x + halfW, y, 4);
+
+    // 5. Single Pin Pole rising from bottom center of cup
+    const poleBottomY = y + height - 4;
+    const poleHeight = 55;
+    const poleTopY = y - poleHeight;
+
+    graphics.lineStyle(3, pinColor, 1);
+    graphics.lineBetween(x, poleBottomY, x, poleTopY);
+
+    // Pin base cap
+    graphics.fillStyle(pinColor, 1);
+    graphics.fillCircle(x, poleBottomY, 3);
+
+    // 6. Single Pennant Flag at top of pin
+    graphics.fillStyle(pennantColor, 1);
+    graphics.beginPath();
+    graphics.moveTo(x, poleTopY);
+    graphics.lineTo(x + 22, poleTopY + 8);
+    graphics.lineTo(x, poleTopY + 16);
+    graphics.closePath();
+    graphics.fillPath();
+
     graphics.lineStyle(1.5, 0xFFD700, 1);
     graphics.strokePath();
   }

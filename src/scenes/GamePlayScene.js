@@ -255,7 +255,7 @@ export default class GamePlayScene extends Phaser.Scene {
             onUpdate: (tween) => {
                 const alpha = tween.getValue();
                 this.goalGraphics.clear();
-                ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, this.level.goal.x, this.level.goal.y, 30, {
+                ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, this.level.goal.x, this.level.goal.y, 60, 40, {
                     rimColor: 0xC9A84C,
                     pennantColor: 0x00FF00,
                     pulseAlpha: alpha

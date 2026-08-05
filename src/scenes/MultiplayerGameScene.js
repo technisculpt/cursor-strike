@@ -183,12 +183,12 @@ export default class MultiplayerGameScene extends Phaser.Scene {
 
         // P1 Red Golf Hole Cup (Top Left: 160, 115) & P2 Blue Golf Hole Cup (Top Right: 1120, 115)
         this.goalGraphics.clear();
-        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 160, 115, 30, {
+        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 160, 115, 60, 40, {
             rimColor: 0xC9A84C,
             pennantColor: 0xFF3333,
             pulseAlpha: 0.9
         });
-        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 1120, 115, 30, {
+        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 1120, 115, 60, 40, {
             rimColor: 0xC9A84C,
             pennantColor: 0x3388FF,
             pulseAlpha: 0.9
