@@ -54,7 +54,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         const defaultHost = savedHost || (window.location.host.includes('github.io') ? '192.168.1.111:3000' : window.location.host);
 
         // Change Server IP button
-        this.createNavButton(width - 150, 115, 'CHANGE SERVER IP', () => {
+        this.createOptionButton(this, width - 150, 115, 'CHANGE SERVER IP', false, () => {
             const newHost = prompt('Enter LAN Server IP & Port (e.g. 192.168.1.111:3000 or laptop:3000):', defaultHost);
             if (newHost && newHost.trim().length > 0) {
                 localStorage.setItem('cursorstrike_lan_host', newHost.trim());
@@ -346,7 +346,11 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             callback();
         });
 
-        parent.add(btnContainer);
+        if (parent && typeof parent.add === 'function') {
+            parent.add(btnContainer);
+        } else {
+            this.add.existing(btnContainer);
+        }
         return btnContainer;
     }
 

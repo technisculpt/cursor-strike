@@ -176,25 +176,29 @@ export default class MultiplayerGameScene extends Phaser.Scene {
     setupWebSocketHandlers() {
         if (!this.ws) return;
 
+        this.serverBallState = { x: 640, y: 640, vx: 0, vy: 0, angle: 0, angularVelocity: 0 };
+        this.serverP1Puck = { x: 160, y: 640 };
+        this.serverP2Puck = { x: 1120, y: 640 };
+
         this.ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 switch (data.type) {
-                    case 'PUCK_POS': {
-                        if (data.role !== this.role) {
-                            this.oppPuckPos.x = data.x;
-                            this.oppPuckPos.y = data.y;
-                            this.oppPuckPos.vx = data.vx;
-                            this.oppPuckPos.vy = data.vy;
+                    case 'GAME_STATE': {
+                        if (data.ball) {
+                            this.serverBallState = data.ball;
                         }
-                        break;
-                    }
-                    case 'BALL_STATE': {
-                        if (this.role === 'P2') {
-                            this.matter.body.setPosition(this.ball, { x: data.x, y: data.y });
-                            this.matter.body.setVelocity(this.ball, { x: data.vx, y: data.vy });
-                            this.matter.body.setAngle(this.ball, data.angle);
-                            this.matter.body.setAngularVelocity(this.ball, data.angularVelocity);
+                        if (data.p1Puck && data.p2Puck) {
+                            this.serverP1Puck = data.p1Puck;
+                            this.serverP2Puck = data.p2Puck;
+                        }
+                        if (data.scores) {
+                            this.scores = data.scores;
+                            this.p1ScoreText.setText(`P1 RED: ${this.scores.p1}`);
+                            this.p2ScoreText.setText(`P2 BLUE: ${this.scores.p2}`);
+                        }
+                        if (typeof data.timerSeconds !== 'undefined' && data.timerSeconds !== null) {
+                            this.timerText.setText(`TIME: ${data.timerSeconds}s`);
                         }
                         break;
                     }
@@ -203,7 +207,6 @@ export default class MultiplayerGameScene extends Phaser.Scene {
                         this.p1ScoreText.setText(`P1 RED: ${this.scores.p1}`);
                         this.p2ScoreText.setText(`P2 BLUE: ${this.scores.p2}`);
                         audioManager.playGoalScored();
-                        this.resetBallToCenter();
                         break;
                     }
                     case 'MATCH_OVER': {
@@ -219,49 +222,19 @@ export default class MultiplayerGameScene extends Phaser.Scene {
                 console.error('Multiplayer WS error:', e);
             }
         };
-
-        // Collisions (P1 Host runs Goal detection)
-        if (this.role === 'P1') {
-            this.matter.world.on('collisionstart', (event) => {
-                if (this.isMatchOver) return;
-                for (let i = 0; i < event.pairs.length; i++) {
-                    const { bodyA, bodyB } = event.pairs[i];
-                    
-                    // Ball hits P1 Red Goal (Top Left) -> Goal for P2!
-                    if ((bodyA === this.p1GoalSensor && bodyB === this.ball) ||
-                        (bodyB === this.p1GoalSensor && bodyA === this.ball)) {
-                        this.ws.send(JSON.stringify({ type: 'SCORE_GOAL', scorer: 'P2' }));
-                        break;
-                    }
-
-                    // Ball hits P2 Blue Goal (Top Right) -> Goal for P1!
-                    if ((bodyA === this.p2GoalSensor && bodyB === this.ball) ||
-                        (bodyB === this.p2GoalSensor && bodyA === this.ball)) {
-                        this.ws.send(JSON.stringify({ type: 'SCORE_GOAL', scorer: 'P1' }));
-                        break;
-                    }
-                }
-            });
-        }
-    }
-
-    resetBallToCenter() {
-        this.matter.body.setPosition(this.ball, { x: 640, y: 640 });
-        this.matter.body.setVelocity(this.ball, { x: 0, y: 0 });
-        this.matter.body.setAngularVelocity(this.ball, 0);
     }
 
     update(time, delta) {
         if (this.isMatchOver) return;
 
-        // Update local puck physics
-        const struck = this.myPuck.update(this.input.activePointer, this.ball);
+        // Update local puck tracking
+        const struck = this.myPuck.update(this.input.activePointer, null);
         if (struck) {
             const speed = Math.sqrt(this.myPuck.vx**2 + this.myPuck.vy**2);
             audioManager.playImpact(Math.min(Math.max(speed / 20, 0.4), 1));
         }
 
-        // Broadcast local puck position to server
+        // Send local puck input to server
         if (this.ws && this.ws.readyState === 1) {
             const pos = this.myPuck.body.position;
             this.ws.send(JSON.stringify({
@@ -271,27 +244,15 @@ export default class MultiplayerGameScene extends Phaser.Scene {
                 vx: this.myPuck.vx,
                 vy: this.myPuck.vy
             }));
-
-            // P1 (Host) broadcasts authoritative ball physics
-            if (this.role === 'P1') {
-                this.ws.send(JSON.stringify({
-                    type: 'SYNC_BALL',
-                    x: this.ball.position.x,
-                    y: this.ball.position.y,
-                    vx: this.ball.velocity.x,
-                    vy: this.ball.velocity.y,
-                    angle: this.ball.angle,
-                    angularVelocity: this.ball.angularVelocity
-                }));
-            }
         }
 
-        // Draw Central White Ball (Radius 24px)
-        const bx = this.ball.position.x;
-        const by = this.ball.position.y;
-        const angle = this.ball.angle;
+        // Draw Central White Ball (Radius 24px) from Server State
+        const bx = this.serverBallState.x;
+        const by = this.serverBallState.y;
+        const angle = this.serverBallState.angle || 0;
+        
         this.ballGraphics.clear();
-        this.ballGraphics.fillStyle(0xFFFFFF, 1); // Pure White Ball
+        this.ballGraphics.fillStyle(0xFFFFFF, 1);
         this.ballGraphics.fillCircle(bx, by, 24);
         this.ballGraphics.lineStyle(2, 0xC9A84C, 1);
         this.ballGraphics.strokeCircle(bx, by, 24);
@@ -306,11 +267,12 @@ export default class MultiplayerGameScene extends Phaser.Scene {
         // Draw P1 (Red) and P2 (Blue) Pucks (12px radius)
         this.puckGraphics.clear();
 
-        const p1X = this.role === 'P1' ? Math.max(12, Math.min(1268, this.myPuck.body.position.x)) : Math.max(12, Math.min(1268, this.oppPuckPos.x));
-        const p1Y = this.role === 'P1' ? Math.max(12, Math.min(708, this.myPuck.body.position.y)) : Math.max(12, Math.min(708, this.oppPuckPos.y));
+        const localPos = this.myPuck.body.position;
+        const p1X = this.role === 'P1' ? Math.max(12, Math.min(1268, localPos.x)) : Math.max(12, Math.min(1268, this.serverP1Puck.x));
+        const p1Y = this.role === 'P1' ? Math.max(12, Math.min(708, localPos.y)) : Math.max(12, Math.min(708, this.serverP1Puck.y));
 
-        const p2X = this.role === 'P2' ? Math.max(12, Math.min(1268, this.myPuck.body.position.x)) : Math.max(12, Math.min(1268, this.oppPuckPos.x));
-        const p2Y = this.role === 'P2' ? Math.max(12, Math.min(708, this.myPuck.body.position.y)) : Math.max(12, Math.min(708, this.oppPuckPos.y));
+        const p2X = this.role === 'P2' ? Math.max(12, Math.min(1268, localPos.x)) : Math.max(12, Math.min(1268, this.serverP2Puck.x));
+        const p2Y = this.role === 'P2' ? Math.max(12, Math.min(708, localPos.y)) : Math.max(12, Math.min(708, this.serverP2Puck.y));
 
         // P1 Red Puck
         this.puckGraphics.fillStyle(0xFF3333, 1);
