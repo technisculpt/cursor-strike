@@ -33,6 +33,7 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
         // Mode Settings (Host options)
         this.mode = 'firstToX'; // 'firstToX' | 'timed'
         this.target = 3;
+        this.mapId = 1; // 1: Classic, 2: Bumpers, 3: Pillars
 
         // Container Panels
         this.createHostPanel(width);
@@ -60,19 +61,19 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
             bgAlpha: 0.9
         });
 
-        const title = this.add.text(0, -140, 'HOST A GAME', {
+        const title = this.add.text(0, -145, 'HOST A GAME', {
             fontFamily: '"Cinzel", serif',
             fontSize: '22px',
             color: '#FFD700'
         }).setOrigin(0.5);
 
-        this.myCodeText = this.add.text(0, -80, 'GENERATING CODE...', {
+        this.myCodeText = this.add.text(0, -95, 'GENERATING CODE...', {
             fontFamily: '"Cinzel", serif',
-            fontSize: '20px',
+            fontSize: '18px',
             color: '#00FF00'
         }).setOrigin(0.5);
 
-        const copyBtn = this.createOptionButton(panel, 0, -30, 'COPY CODE TO CLIPBOARD', false, () => {
+        const copyBtn = this.createOptionButton(panel, 0, -50, 'COPY CODE TO CLIPBOARD', false, () => {
             if (this.myPeerId) {
                 navigator.clipboard.writeText(this.myPeerId);
                 this.statusText.setText('CODE COPIED TO CLIPBOARD!');
@@ -81,25 +82,114 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
         });
 
         // Match Mode Controls
-        const modeLabel = this.add.text(0, 30, 'MATCH MODE:', {
+        const modeLabel = this.add.text(0, 0, 'MATCH MODE:', {
             fontFamily: '"Cinzel", serif',
-            fontSize: '16px',
+            fontSize: '15px',
             color: '#C9A84C'
         }).setOrigin(0.5);
 
-        this.btnFirstTo3 = this.createOptionButton(panel, -100, 80, 'FIRST TO 3', true, () => {
+        this.btnFirstTo3 = this.createOptionButton(panel, -100, 40, 'FIRST TO 3', true, () => {
             this.mode = 'firstToX';
             this.target = 3;
             this.updateModeButtons();
         });
 
-        this.btnTimed30 = this.createOptionButton(panel, 100, 80, '30s TIMED', false, () => {
+        this.btnTimed30 = this.createOptionButton(panel, 100, 40, '30s TIMED', false, () => {
             this.mode = 'timed';
             this.target = 30;
             this.updateModeButtons();
         });
 
-        panel.add([graphics, title, this.myCodeText, modeLabel]);
+        // Map Selector Controls
+        const mapLabel = this.add.text(0, 85, 'SELECT ARENA MAP:', {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '15px',
+            color: '#C9A84C'
+        }).setOrigin(0.5);
+
+        this.btnMap1 = this.createSmallMapButton(panel, -145, 125, '1. CLASSIC', true, () => {
+            this.mapId = 1;
+            this.updateMapButtons();
+        });
+
+        this.btnMap2 = this.createSmallMapButton(panel, 0, 125, '2. BUMPERS', false, () => {
+            this.mapId = 2;
+            this.updateMapButtons();
+        });
+
+        this.btnMap3 = this.createSmallMapButton(panel, 145, 125, '3. PILLARS', false, () => {
+            this.mapId = 3;
+            this.updateMapButtons();
+        });
+
+        panel.add([graphics, title, this.myCodeText, modeLabel, mapLabel]);
+    }
+
+    updateMapButtons() {
+        this.redrawSmallMapButton(this.btnMap1, '1. CLASSIC', this.mapId === 1);
+        this.redrawSmallMapButton(this.btnMap2, '2. BUMPERS', this.mapId === 2);
+        this.redrawSmallMapButton(this.btnMap3, '3. PILLARS', this.mapId === 3);
+    }
+
+    createSmallMapButton(parent, x, y, text, isSelected, callback) {
+        const width = 130;
+        const height = 35;
+        const btnContainer = this.add.container(x, y);
+        btnContainer.setSize(width, height);
+        btnContainer.setInteractive({ useHandCursor: true });
+
+        const graphics = this.add.graphics();
+        ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+            color: isSelected ? 0x00FF00 : 0xC9A84C,
+            lineWidth: isSelected ? 3 : 2,
+            padding: 3,
+            bgColor: isSelected ? 0x1B4332 : 0x081C15,
+            bgAlpha: 0.9
+        });
+
+        const btnText = this.add.text(0, 0, text, {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '12px',
+            color: isSelected ? '#00FF00' : '#FFFFF0'
+        }).setOrigin(0.5);
+
+        btnContainer.add([graphics, btnText]);
+
+        btnContainer.on('pointerover', () => {
+            audioManager.playUIHover();
+            this.tweens.add({ targets: btnContainer, scaleX: 1.04, scaleY: 1.04, duration: 100 });
+        });
+
+        btnContainer.on('pointerout', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 100 });
+        });
+
+        btnContainer.on('pointerup', () => {
+            audioManager.playUIClick();
+            callback();
+        });
+
+        parent.add(btnContainer);
+        return btnContainer;
+    }
+
+    redrawSmallMapButton(btnContainer, text, isSelected) {
+        if (!btnContainer || !btnContainer.list) return;
+        const graphics = btnContainer.list[0];
+        const btnText = btnContainer.list[1];
+        if (graphics && btnText) {
+            graphics.clear();
+            const width = 130;
+            const height = 35;
+            ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+                color: isSelected ? 0x00FF00 : 0xC9A84C,
+                lineWidth: isSelected ? 3 : 2,
+                padding: 3,
+                bgColor: isSelected ? 0x1B4332 : 0x081C15,
+                bgAlpha: 0.95
+            });
+            btnText.setColor(isSelected ? '#00FF00' : '#FFFFF0');
+        }
     }
 
     updateModeButtons() {
@@ -211,7 +301,8 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
                         type: 'GAME_START',
                         role: 'P2',
                         mode: this.mode,
-                        target: this.target
+                        target: this.target,
+                        mapId: this.mapId || 1
                     });
 
                     // Start Game Scene as P1 (Host)
@@ -221,7 +312,8 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
                             conn: this.conn,
                             role: 'P1',
                             mode: this.mode,
-                            target: this.target
+                            target: this.target,
+                            mapId: this.mapId || 1
                         });
                     });
                 });

@@ -160,10 +160,9 @@ export default class GamePlayScene extends Phaser.Scene {
             });
         }
 
-        // Goal sensor
-        this.goalSensor = this.matter.add.rectangle(
-            this.level.goal.x, this.level.goal.y, 
-            this.level.goal.width, this.level.goal.height,
+        // Circular Golf Hole Goal Cup Sensor
+        this.goalSensor = this.matter.add.circle(
+            this.level.goal.x, this.level.goal.y, 30,
             { isStatic: true, isSensor: true, label: 'goal' }
         );
 
@@ -245,30 +244,21 @@ export default class GamePlayScene extends Phaser.Scene {
             }
         });
 
-        // Pulsing goal effect
+        // Pulsing Golf Hole Goal Cup effect
         this.tweens.addCounter({
             from: 0.3,
-            to: 0.8,
+            to: 1.0,
             duration: 1000,
             yoyo: true,
             repeat: -1,
             onUpdate: (tween) => {
                 const alpha = tween.getValue();
                 this.goalGraphics.clear();
-                this.goalGraphics.fillStyle(0x00FF00, alpha);
-                this.goalGraphics.fillRect(
-                    this.level.goal.x - this.level.goal.width/2, 
-                    this.level.goal.y - this.level.goal.height/2, 
-                    this.level.goal.width, 
-                    this.level.goal.height
-                );
-                this.goalGraphics.lineStyle(2, 0x00FF00, 1);
-                this.goalGraphics.strokeRect(
-                    this.level.goal.x - this.level.goal.width/2, 
-                    this.level.goal.y - this.level.goal.height/2, 
-                    this.level.goal.width, 
-                    this.level.goal.height
-                );
+                ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, this.level.goal.x, this.level.goal.y, 30, {
+                    rimColor: 0xC9A84C,
+                    pennantColor: 0x00FF00,
+                    pulseAlpha: alpha
+                });
             }
         });
     }

@@ -33,6 +33,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
 
         this.selectedMode = 'firstToX'; // 'firstToX' | 'timed'
         this.selectedTarget = 3; // 3 goals or 30 seconds
+        this.selectedMap = 1; // 1: Classic Defense, 2: Bumper Alley, 3: Quad Pillars
 
         this.connectWebSocket();
 
@@ -194,37 +195,117 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         });
 
         // Rules explanation
-        this.rulesText = this.add.text(width / 2, 240, 'P1 (Red Top-Left) vs P2 (Blue Top-Right)\nFirst to 3 Goals wins!', {
+        this.rulesText = this.add.text(width / 2, 210, 'P1 (Red Top-Left) vs P2 (Blue Top-Right)\nFirst to 3 Goals wins!', {
             fontFamily: '"Cinzel", serif',
-            fontSize: '16px',
+            fontSize: '15px',
             color: '#FFFFF0',
             align: 'center'
         }).setOrigin(0.5);
         container.add(this.rulesText);
 
+        // Map Selection Label
+        const mapLabel = this.add.text(width / 2, 265, 'SELECT ARENA MAP:', {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '16px',
+            color: '#C9A84C'
+        }).setOrigin(0.5);
+        container.add(mapLabel);
+
+        // Small 3-map selector row
+        this.btnMap1 = this.createSmallMapButton(container, width / 2 - 145, 310, '1. CLASSIC', true, () => {
+            this.selectedMap = 1;
+            this.updateMapButtons();
+        });
+
+        this.btnMap2 = this.createSmallMapButton(container, width / 2, 310, '2. BUMPERS', false, () => {
+            this.selectedMap = 2;
+            this.updateMapButtons();
+        });
+
+        this.btnMap3 = this.createSmallMapButton(container, width / 2 + 145, 310, '3. PILLARS', false, () => {
+            this.selectedMap = 3;
+            this.updateMapButtons();
+        });
+
         // Create Host Button
-        this.createActionButton(container, width / 2, 380, 'CREATE ROOM', () => {
+        this.createActionButton(container, width / 2, 400, 'CREATE ROOM', () => {
             if (this.ws && this.ws.readyState === 1) {
                 audioManager.playUIClick();
                 this.ws.send(JSON.stringify({
                     type: 'CREATE_ROOM',
                     mode: this.selectedMode,
-                    target: this.selectedTarget
+                    target: this.selectedTarget,
+                    mapId: this.selectedMap || 1
                 }));
             }
         });
     }
 
-    updateModeButtons() {
-        const isFirst = this.selectedMode === 'firstToX';
-        if (isFirst) {
-            this.rulesText.setText('P1 (Red Top-Left) vs P2 (Blue Top-Right)\nFirst to 3 Goals wins!');
-        } else {
-            this.rulesText.setText('P1 (Red Top-Left) vs P2 (Blue Top-Right)\nHighest score in 30 Seconds wins!');
-        }
+    updateMapButtons() {
+        this.redrawSmallMapButton(this.btnMap1, '1. CLASSIC', this.selectedMap === 1);
+        this.redrawSmallMapButton(this.btnMap2, '2. BUMPERS', this.selectedMap === 2);
+        this.redrawSmallMapButton(this.btnMap3, '3. PILLARS', this.selectedMap === 3);
+    }
 
-        this.redrawOptionButton(this.btnFirstToX, 'FIRST TO 3 GOALS', isFirst);
-        this.redrawOptionButton(this.btnTimed, '30S TIMED MATCH', !isFirst);
+    createSmallMapButton(parent, x, y, text, isSelected, callback) {
+        const width = 130;
+        const height = 40;
+        const btnContainer = this.add.container(x, y);
+        btnContainer.setSize(width, height);
+        btnContainer.setInteractive({ useHandCursor: true });
+
+        const graphics = this.add.graphics();
+        ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+            color: isSelected ? 0x00FF00 : 0xC9A84C,
+            lineWidth: isSelected ? 3 : 2,
+            padding: 3,
+            bgColor: isSelected ? 0x1B4332 : 0x081C15,
+            bgAlpha: 0.9
+        });
+
+        const btnText = this.add.text(0, 0, text, {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '13px',
+            color: isSelected ? '#00FF00' : '#FFFFF0'
+        }).setOrigin(0.5);
+
+        btnContainer.add([graphics, btnText]);
+
+        btnContainer.on('pointerover', () => {
+            audioManager.playUIHover();
+            this.tweens.add({ targets: btnContainer, scaleX: 1.04, scaleY: 1.04, duration: 100 });
+        });
+
+        btnContainer.on('pointerout', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 100 });
+        });
+
+        btnContainer.on('pointerup', () => {
+            audioManager.playUIClick();
+            callback();
+        });
+
+        parent.add(btnContainer);
+        return btnContainer;
+    }
+
+    redrawSmallMapButton(btnContainer, text, isSelected) {
+        if (!btnContainer || !btnContainer.list) return;
+        const graphics = btnContainer.list[0];
+        const btnText = btnContainer.list[1];
+        if (graphics && btnText) {
+            graphics.clear();
+            const width = 130;
+            const height = 40;
+            ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+                color: isSelected ? 0x00FF00 : 0xC9A84C,
+                lineWidth: isSelected ? 3 : 2,
+                padding: 3,
+                bgColor: isSelected ? 0x1B4332 : 0x081C15,
+                bgAlpha: 0.95
+            });
+            btnText.setColor(isSelected ? '#00FF00' : '#FFFFF0');
+        }
     }
 
     redrawOptionButton(btnContainer, text, isSelected) {

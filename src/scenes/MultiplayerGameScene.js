@@ -27,35 +27,27 @@ export default class MultiplayerGameScene extends Phaser.Scene {
         // Physics Setup
         this.matter.world.setBounds(0, 0, width, height, 32, true, true, true, true);
 
+        this.mapId = data.mapId || 1; // 1: Classic Defense, 2: Bumper Alley, 3: Quad Pillars
+
         // Solid Outer Borders
         this.createOuterBorders(width, height);
 
-        // Defensive Center Platform (directly above ball spawn point to prevent 1-shot goals)
-        this.matter.add.rectangle(640, 460, 220, 30, {
-            isStatic: true,
-            collisionFilter: { category: CATEGORY_ENVIRONMENT, mask: CATEGORY_BALL },
-            friction: 0.3,
-            restitution: 0.5,
-            label: 'center_platform'
-        });
+        // Map Specific Local Sensors & Physics Static Structures
+        this.setupMapStructures();
 
-        // P1 Goal (Red - Top Left)
-        this.p1GoalSensor = this.matter.add.rectangle(160, 115, 120, 50, {
+        // P1 Goal (Red - Top Left Circular Golf Hole)
+        this.p1GoalSensor = this.matter.add.circle(160, 115, 30, {
             isStatic: true,
             isSensor: true,
             label: 'p1_goal'
         });
 
-        // P2 Goal (Blue - Top Right)
-        this.p2GoalSensor = this.matter.add.rectangle(1120, 115, 120, 50, {
+        // P2 Goal (Blue - Top Right Circular Golf Hole)
+        this.p2GoalSensor = this.matter.add.circle(1120, 115, 30, {
             isStatic: true,
             isSensor: true,
             label: 'p2_goal'
         });
-
-        // No local ball body — ball is entirely server-authoritative.
-        // We only render ball from GAME_STATE (serverBallState).
-        // Removing local body prevents gravity/wall simulation noise affecting puck tracking.
 
         // Local Puck Physics
         this.myPuck = new CursorPhysics(this);
@@ -94,8 +86,53 @@ export default class MultiplayerGameScene extends Phaser.Scene {
         }
     }
 
+    setupMapStructures() {
+        if (this.mapId === 1) {
+            // Classic Defense: Center Platform
+            this.matter.add.rectangle(640, 460, 220, 30, {
+                isStatic: true,
+                collisionFilter: { category: CATEGORY_ENVIRONMENT, mask: CATEGORY_BALL },
+                friction: 0.3,
+                restitution: 0.5,
+                label: 'center_platform'
+            });
+        } else if (this.mapId === 2) {
+            // Pinball Bumper Alley: Center Diamond & Angled Bumpers
+            this.matter.add.rectangle(640, 440, 120, 120, {
+                isStatic: true,
+                angle: Math.PI / 4,
+                restitution: 0.8,
+                label: 'diamond_bumper'
+            });
+            this.matter.add.rectangle(360, 480, 100, 20, {
+                isStatic: true,
+                angle: Math.PI / 6,
+                restitution: 0.8,
+                label: 'left_bumper'
+            });
+            this.matter.add.rectangle(920, 480, 100, 20, {
+                isStatic: true,
+                angle: -Math.PI / 6,
+                restitution: 0.8,
+                label: 'right_bumper'
+            });
+        } else if (this.mapId === 3) {
+            // Quad Pillar Gauntlet: 4 Interior Pillars
+            this.matter.add.rectangle(400, 320, 40, 40, { isStatic: true, restitution: 0.7, label: 'pillar1' });
+            this.matter.add.rectangle(880, 320, 40, 40, { isStatic: true, restitution: 0.7, label: 'pillar2' });
+            this.matter.add.rectangle(400, 520, 40, 40, { isStatic: true, restitution: 0.7, label: 'pillar3' });
+            this.matter.add.rectangle(880, 520, 40, 40, { isStatic: true, restitution: 0.7, label: 'pillar4' });
+            
+            // Moving Central Barrier
+            this.centralBarrierBody = this.matter.add.rectangle(640, 420, 150, 25, {
+                isStatic: true,
+                restitution: 0.6,
+                label: 'central_barrier'
+            });
+        }
+    }
+
     createOuterBorders(width, height) {
-        // Top, Bottom, Left, Right outer walls
         const wallThickness = 40;
         this.matter.add.rectangle(width / 2, wallThickness / 2, width, wallThickness, { isStatic: true, label: 'border' });
         this.matter.add.rectangle(width / 2, height - wallThickness / 2, width, wallThickness, { isStatic: true, label: 'border' });
@@ -113,20 +150,49 @@ export default class MultiplayerGameScene extends Phaser.Scene {
         this.terrainGraphics.fillRect(0, 0, 20, height);
         this.terrainGraphics.fillRect(width - 20, 0, 20, height);
 
-        // Center Platform
-        this.terrainGraphics.fillRect(530, 445, 220, 30);
+        if (this.mapId === 1) {
+            // Center Platform
+            this.terrainGraphics.fillRect(530, 445, 220, 30);
+        } else if (this.mapId === 2) {
+            // Diamond & Side Bumpers
+            this.terrainGraphics.save();
+            this.terrainGraphics.translateCanvas(640, 440);
+            this.terrainGraphics.rotateCanvas(Math.PI / 4);
+            this.terrainGraphics.fillRect(-60, -60, 120, 120);
+            this.terrainGraphics.restore();
 
-        // P1 Goal (Red - Top Left)
-        this.goalGraphics.fillStyle(0xFF3333, 0.85);
-        this.goalGraphics.fillRect(100, 90, 120, 50);
-        this.goalGraphics.lineStyle(3, 0xFFD700, 1);
-        this.goalGraphics.strokeRect(100, 90, 120, 50);
+            this.terrainGraphics.save();
+            this.terrainGraphics.translateCanvas(360, 480);
+            this.terrainGraphics.rotateCanvas(Math.PI / 6);
+            this.terrainGraphics.fillRect(-50, -10, 100, 20);
+            this.terrainGraphics.restore();
 
-        // P2 Goal (Blue - Top Right)
-        this.goalGraphics.fillStyle(0x3388FF, 0.85);
-        this.goalGraphics.fillRect(1060, 90, 120, 50);
-        this.goalGraphics.lineStyle(3, 0xFFD700, 1);
-        this.goalGraphics.strokeRect(1060, 90, 120, 50);
+            this.terrainGraphics.save();
+            this.terrainGraphics.translateCanvas(920, 480);
+            this.terrainGraphics.rotateCanvas(-Math.PI / 6);
+            this.terrainGraphics.fillRect(-50, -10, 100, 20);
+            this.terrainGraphics.restore();
+        } else if (this.mapId === 3) {
+            // Pillars & Center Barrier
+            this.terrainGraphics.fillRect(380, 300, 40, 40);
+            this.terrainGraphics.fillRect(860, 300, 40, 40);
+            this.terrainGraphics.fillRect(380, 500, 40, 40);
+            this.terrainGraphics.fillRect(860, 500, 40, 40);
+            this.terrainGraphics.fillRect(565, 407, 150, 25);
+        }
+
+        // P1 Red Golf Hole Cup (Top Left: 160, 115) & P2 Blue Golf Hole Cup (Top Right: 1120, 115)
+        this.goalGraphics.clear();
+        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 160, 115, 30, {
+            rimColor: 0xC9A84C,
+            pennantColor: 0xFF3333,
+            pulseAlpha: 0.9
+        });
+        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 1120, 115, 30, {
+            rimColor: 0xC9A84C,
+            pennantColor: 0x3388FF,
+            pulseAlpha: 0.9
+        });
     }
 
     setupMultiplayerHUD(width) {

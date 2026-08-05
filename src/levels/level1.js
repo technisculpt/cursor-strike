@@ -4,7 +4,7 @@ export const level1 = {
     description: 'Learn to strike the ball up the ramp.',
     difficulty: 1,
     ballSpawn: { x: 200, y: 540 },
-    goal: { x: 1140, y: 250, width: 100, height: 50 },
+    goal: { x: 1140, y: 275, radius: 28 },
     terrain: [
         { type: 'rectangle', x: 350, y: 600, width: 700, height: 50, angle: 0, label: 'ground' },
         { 

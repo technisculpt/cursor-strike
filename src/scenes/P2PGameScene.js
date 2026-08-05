@@ -46,6 +46,8 @@ export default class P2PGameScene extends Phaser.Scene {
         // Setup HUD
         this.setupHUD(width);
 
+        this.mapId = data.mapId || 1; // 1: Classic, 2: Bumpers, 3: Pillars
+
         // Host Runs Matter.js Physics Engine locally
         if (this.role === 'P1') {
             this.setupHostPhysics(width, height);
@@ -65,14 +67,24 @@ export default class P2PGameScene extends Phaser.Scene {
         this.matter.add.rectangle(wallThickness / 2, height / 2, wallThickness, height, { isStatic: true, restitution: 0.8, friction: 0 });
         this.matter.add.rectangle(width - wallThickness / 2, height / 2, wallThickness, height, { isStatic: true, restitution: 0.8, friction: 0 });
 
-        // Center Platform
-        this.centerPlatform = this.matter.add.rectangle(640, 460, 220, 30, {
-            isStatic: true, restitution: 0.7, friction: 0.1
-        });
+        // Map Specific Structures
+        if (this.mapId === 1) {
+            this.matter.add.rectangle(640, 460, 220, 30, { isStatic: true, restitution: 0.7, friction: 0.1 });
+        } else if (this.mapId === 2) {
+            this.matter.add.rectangle(640, 440, 120, 120, { isStatic: true, angle: Math.PI / 4, restitution: 0.8, friction: 0 });
+            this.matter.add.rectangle(360, 480, 100, 20, { isStatic: true, angle: Math.PI / 6, restitution: 0.8, friction: 0 });
+            this.matter.add.rectangle(920, 480, 100, 20, { isStatic: true, angle: -Math.PI / 6, restitution: 0.8, friction: 0 });
+        } else if (this.mapId === 3) {
+            this.matter.add.rectangle(400, 320, 40, 40, { isStatic: true, restitution: 0.7 });
+            this.matter.add.rectangle(880, 320, 40, 40, { isStatic: true, restitution: 0.7 });
+            this.matter.add.rectangle(400, 520, 40, 40, { isStatic: true, restitution: 0.7 });
+            this.matter.add.rectangle(880, 520, 40, 40, { isStatic: true, restitution: 0.7 });
+            this.matter.add.rectangle(640, 420, 150, 25, { isStatic: true, restitution: 0.6 });
+        }
 
-        // Goals
-        this.p1GoalSensor = this.matter.add.rectangle(160, 115, 120, 50, { isStatic: true, isSensor: true, label: 'p1_goal' });
-        this.p2GoalSensor = this.matter.add.rectangle(1120, 115, 120, 50, { isStatic: true, isSensor: true, label: 'p2_goal' });
+        // Circular Golf Hole Goal Sensors (r=30)
+        this.p1GoalSensor = this.matter.add.circle(160, 115, 30, { isStatic: true, isSensor: true, label: 'p1_goal' });
+        this.p2GoalSensor = this.matter.add.circle(1120, 115, 30, { isStatic: true, isSensor: true, label: 'p2_goal' });
 
         // Central White Ball
         const BALL_RADIUS = 24;
@@ -245,20 +257,49 @@ export default class P2PGameScene extends Phaser.Scene {
         this.terrainGraphics.fillRect(0, 0, 20, height);
         this.terrainGraphics.fillRect(width - 20, 0, 20, height);
 
-        // Center Platform
-        this.terrainGraphics.fillRect(530, 445, 220, 30);
+        if (this.mapId === 1) {
+            // Center Platform
+            this.terrainGraphics.fillRect(530, 445, 220, 30);
+        } else if (this.mapId === 2) {
+            // Diamond & Side Bumpers
+            this.terrainGraphics.save();
+            this.terrainGraphics.translateCanvas(640, 440);
+            this.terrainGraphics.rotateCanvas(Math.PI / 4);
+            this.terrainGraphics.fillRect(-60, -60, 120, 120);
+            this.terrainGraphics.restore();
 
-        // P1 Goal (Red - Top Left)
-        this.goalGraphics.fillStyle(0xFF3333, 0.85);
-        this.goalGraphics.fillRect(100, 90, 120, 50);
-        this.goalGraphics.lineStyle(3, 0xFFD700, 1);
-        this.goalGraphics.strokeRect(100, 90, 120, 50);
+            this.terrainGraphics.save();
+            this.terrainGraphics.translateCanvas(360, 480);
+            this.terrainGraphics.rotateCanvas(Math.PI / 6);
+            this.terrainGraphics.fillRect(-50, -10, 100, 20);
+            this.terrainGraphics.restore();
 
-        // P2 Goal (Blue - Top Right)
-        this.goalGraphics.fillStyle(0x3388FF, 0.85);
-        this.goalGraphics.fillRect(1060, 90, 120, 50);
-        this.goalGraphics.lineStyle(3, 0xFFD700, 1);
-        this.goalGraphics.strokeRect(1060, 90, 120, 50);
+            this.terrainGraphics.save();
+            this.terrainGraphics.translateCanvas(920, 480);
+            this.terrainGraphics.rotateCanvas(-Math.PI / 6);
+            this.terrainGraphics.fillRect(-50, -10, 100, 20);
+            this.terrainGraphics.restore();
+        } else if (this.mapId === 3) {
+            // Pillars & Center Barrier
+            this.terrainGraphics.fillRect(380, 300, 40, 40);
+            this.terrainGraphics.fillRect(860, 300, 40, 40);
+            this.terrainGraphics.fillRect(380, 500, 40, 40);
+            this.terrainGraphics.fillRect(860, 500, 40, 40);
+            this.terrainGraphics.fillRect(565, 407, 150, 25);
+        }
+
+        // P1 Red Golf Hole Cup (Top Left: 160, 115) & P2 Blue Golf Hole Cup (Top Right: 1120, 115)
+        this.goalGraphics.clear();
+        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 160, 115, 30, {
+            rimColor: 0xC9A84C,
+            pennantColor: 0xFF3333,
+            pulseAlpha: 0.9
+        });
+        ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 1120, 115, 30, {
+            rimColor: 0xC9A84C,
+            pennantColor: 0x3388FF,
+            pulseAlpha: 0.9
+        });
     }
 
     setupHUD(width) {

@@ -98,39 +98,80 @@ export class ScrollworkRenderer {
     graphics.beginPath();
     // Draw sweeping curve to center
     this.drawCubicBezierCurve(graphics, x, y, x + width * 0.25, y - 10, x + width * 0.4, y + 5, midX, y);
-    // Continue to right
-    this.drawCubicBezierCurve(graphics, midX, y, midX + width * 0.1, y - 5, x + width * 0.75, y + 10, x + width, y);
-    
-    // Center diamond/leaf
-    graphics.moveTo(midX, y - 5);
-    graphics.lineTo(midX + 5, y);
-    graphics.lineTo(midX, y + 5);
-    graphics.lineTo(midX - 5, y);
-    graphics.lineTo(midX, y - 5);
-    
+    // Continue
+    this.drawCubicBezierCurve(graphics, midX, y, x + width * 0.6, y - 5, x + width * 0.75, y + 10, x + width, y);
     graphics.strokePath();
+
+    // Center diamond
+    graphics.fillStyle(color, 1);
+    graphics.beginPath();
+    graphics.moveTo(midX, y - 6);
+    graphics.lineTo(midX + 6, y);
+    graphics.lineTo(midX, y + 6);
+    graphics.lineTo(midX - 6, y);
+    graphics.closePath();
+    graphics.fillPath();
   }
 
   static drawCartouche(graphics, x, y, width, height) {
     const color = 0xC9A84C;
-    const bgColor = 0x1B4332; // Deep green
-    
-    graphics.fillStyle(bgColor, 0.9);
-    
-    const r = height / 2;
-    graphics.fillRoundedRect(x, y, width, height, r);
-    
+    graphics.fillStyle(0x081C15, 0.9);
+    graphics.fillRoundedRect(x, y, width, height, height / 2);
     graphics.lineStyle(2, color, 1);
-    graphics.strokeRoundedRect(x, y, width, height, r);
-    
-    // Left flourish
+    graphics.strokeRoundedRect(x, y, width, height, height / 2);
+    graphics.fillStyle(color, 1);
+    graphics.fillCircle(x + height / 2, y + height / 2, 4);
+    graphics.fillCircle(x + width - height / 2, y + height / 2, 4);
+  }
+
+  static drawGolfHoleGoal(graphics, x, y, radius = 30, options = {}) {
+    const {
+      rimColor = 0xC9A84C,       // Brass/gold rim
+      cupColor = 0x0A190E,       // Dark cup depression
+      pinColor = 0xFFD700,       // Gold pin pole
+      pennantColor = 0x00FF00,   // Green flag pennant (or Red 0xFF3333 for P1, Blue 0x3388FF for P2)
+      pulseAlpha = 1.0
+    } = options;
+
+    // Outer grass ring shadow
+    graphics.fillStyle(0x000000, 0.4);
+    graphics.fillCircle(x, y + 2, radius + 4);
+
+    // Brass/gold cup rim ring
+    graphics.lineStyle(4, rimColor, 1);
+    graphics.fillStyle(cupColor, 1);
+    graphics.fillCircle(x, y, radius);
+    graphics.strokeCircle(x, y, radius);
+
+    // Inner cup depth gradient / shadow
+    graphics.fillStyle(0x000000, 0.6);
+    graphics.fillCircle(x, y, radius * 0.65);
+
+    // Glowing target center ring
+    graphics.lineStyle(2, pennantColor, pulseAlpha);
+    graphics.strokeCircle(x, y, radius * 0.45);
+
+    // Golf Pin Pole (vertical brass rod)
+    const poleHeight = 45;
+    graphics.lineStyle(3, pinColor, 1);
     graphics.beginPath();
-    this.drawCubicBezierCurve(graphics, x + r, y + 5, x, y - 10, x - 15, y + height / 2, x + r, y + height - 5);
+    graphics.moveTo(x, y);
+    graphics.lineTo(x, y - poleHeight);
     graphics.strokePath();
-    
-    // Right flourish
+
+    // Pin Pole Base Cap
+    graphics.fillStyle(pinColor, 1);
+    graphics.fillCircle(x, y, 4);
+
+    // Pennant Flag at top of pin
+    graphics.fillStyle(pennantColor, 1);
     graphics.beginPath();
-    this.drawCubicBezierCurve(graphics, x + width - r, y + 5, x + width, y - 10, x + width + 15, y + height / 2, x + width - r, y + height - 5);
+    graphics.moveTo(x, y - poleHeight);
+    graphics.lineTo(x + 22, y - poleHeight + 8);
+    graphics.lineTo(x, y - poleHeight + 16);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.lineStyle(1.5, 0xFFD700, 1);
     graphics.strokePath();
   }
 }

@@ -107,12 +107,29 @@ function startServerPhysicsRoom(room) {
     const leftBorder   = Bodies.rectangle(wallThickness / 2,          height / 2, wallThickness, height,        borderOpts);
     const rightBorder  = Bodies.rectangle(width - wallThickness / 2,  height / 2, wallThickness, height,        borderOpts);
 
-    const centerPlatform = Bodies.rectangle(640, 460, 220, 30, {
-        isStatic: true, restitution: 0.7, friction: 0.1
-    });
+    const mapId = room.mapId || 1;
+    const mapBodies = [];
 
-    const p1Goal = Bodies.rectangle(160, 115, 120, 50, { isStatic: true, isSensor: true, label: 'p1_goal' });
-    const p2Goal = Bodies.rectangle(1120, 115, 120, 50, { isStatic: true, isSensor: true, label: 'p2_goal' });
+    if (mapId === 1) {
+        // Classic Defense: Center Platform
+        mapBodies.push(Bodies.rectangle(640, 460, 220, 30, { isStatic: true, restitution: 0.7, friction: 0.1 }));
+    } else if (mapId === 2) {
+        // Pinball Bumper Alley: Center Diamond & Side Bumpers
+        mapBodies.push(Bodies.rectangle(640, 440, 120, 120, { isStatic: true, angle: Math.PI / 4, restitution: 0.8, friction: 0 }));
+        mapBodies.push(Bodies.rectangle(360, 480, 100, 20, { isStatic: true, angle: Math.PI / 6, restitution: 0.8, friction: 0 }));
+        mapBodies.push(Bodies.rectangle(920, 480, 100, 20, { isStatic: true, angle: -Math.PI / 6, restitution: 0.8, friction: 0 }));
+    } else if (mapId === 3) {
+        // Quad Pillar Gauntlet: 4 Interior Pillars & Center Barrier
+        mapBodies.push(Bodies.rectangle(400, 320, 40, 40, { isStatic: true, restitution: 0.7 }));
+        mapBodies.push(Bodies.rectangle(880, 320, 40, 40, { isStatic: true, restitution: 0.7 }));
+        mapBodies.push(Bodies.rectangle(400, 520, 40, 40, { isStatic: true, restitution: 0.7 }));
+        mapBodies.push(Bodies.rectangle(880, 520, 40, 40, { isStatic: true, restitution: 0.7 }));
+        mapBodies.push(Bodies.rectangle(640, 420, 150, 25, { isStatic: true, restitution: 0.6 }));
+    }
+
+    // Circular Golf Hole Goal Sensors (r=30)
+    const p1Goal = Bodies.circle(160, 115, 30, { isStatic: true, isSensor: true, label: 'p1_goal' });
+    const p2Goal = Bodies.circle(1120, 115, 30, { isStatic: true, isSensor: true, label: 'p2_goal' });
 
     const BALL_RADIUS = 24;
     const ball = Bodies.circle(640, 640, BALL_RADIUS, {
@@ -130,7 +147,7 @@ function startServerPhysicsRoom(room) {
 
     World.add(world, [
         topBorder, bottomBorder, leftBorder, rightBorder,
-        centerPlatform, p1Goal, p2Goal, ball, p1Puck, p2Puck
+        ...mapBodies, p1Goal, p2Goal, ball, p1Puck, p2Puck
     ]);
 
     room.physics = { engine, world, ball, p1Puck, p2Puck };
@@ -315,6 +332,7 @@ wss.on('connection', (ws) => {
                         name: data.roomName || `Room ${roomId}`,
                         mode: data.mode || 'firstToX',
                         target: data.target || 3,
+                        mapId: data.mapId || 1,
                         p1: ws,
                         p2: null,
                         scores: { p1: 0, p2: 0 },
@@ -323,7 +341,7 @@ wss.on('connection', (ws) => {
                     rooms.set(roomId, room);
                     ws.roomId = roomId;
                     ws.role = 'P1';
-                    ws.send(JSON.stringify({ type: 'ROOM_CREATED', roomId, role: 'P1', mode: room.mode, target: room.target }));
+                    ws.send(JSON.stringify({ type: 'ROOM_CREATED', roomId, role: 'P1', mode: room.mode, target: room.target, mapId: room.mapId }));
                     broadcastRoomList();
                     break;
                 }
@@ -335,14 +353,15 @@ wss.on('connection', (ws) => {
                         room.state = 'playing';
                         ws.roomId = room.id;
                         ws.role = 'P2';
-                        ws.send(JSON.stringify({ type: 'ROOM_JOINED', roomId: room.id, role: 'P2', mode: room.mode, target: room.target }));
+                        ws.send(JSON.stringify({ type: 'ROOM_JOINED', roomId: room.id, role: 'P2', mode: room.mode, target: room.target, mapId: room.mapId }));
                         
                         startServerPhysicsRoom(room);
 
                         const startMsg = JSON.stringify({
                             type: 'GAME_START',
                             mode: room.mode,
-                            target: room.target
+                            target: room.target,
+                            mapId: room.mapId
                         });
                         if (room.p1 && room.p1.readyState === 1) room.p1.send(startMsg);
                         if (room.p2 && room.p2.readyState === 1) room.p2.send(startMsg);
