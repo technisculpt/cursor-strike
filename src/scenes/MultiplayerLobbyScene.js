@@ -43,35 +43,72 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         this.createJoinPanel(680, 150, 500, 480);
 
         // Back Button
-        this.createBackButton(80, height - 40);
+        // Status & Change LAN IP button
+        this.createIpConfigUI(width);
+
+        this.connectWebSocket();
     }
 
-    connectWebSocket() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host || 'localhost:3000';
-        const wsUrl = `${protocol}//${host}`;
+    createIpConfigUI(width) {
+        const savedHost = localStorage.getItem('cursorstrike_lan_host') || '';
+        const defaultHost = savedHost || (window.location.host.includes('github.io') ? '192.168.1.111:3000' : window.location.host);
 
-        this.ws = new WebSocket(wsUrl);
-
-        this.ws.onopen = () => {
-            this.statusText.setText('CONNECTED TO LAN SERVER');
-            this.statusText.setColor('#00FF00');
-            this.ws.send(JSON.stringify({ type: 'ENTER_LOBBY' }));
-        };
-
-        this.ws.onerror = () => {
-            this.statusText.setText('LAN SERVER CONNECTION ERROR');
-            this.statusText.setColor('#FF3333');
-        };
-
-        this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                this.handleServerMessage(data);
-            } catch (e) {
-                console.error('Lobby WS error:', e);
+        // Change Server IP button
+        this.createNavButton(width - 150, 115, 'CHANGE SERVER IP', () => {
+            const newHost = prompt('Enter LAN Server IP & Port (e.g. 192.168.1.111:3000 or laptop:3000):', defaultHost);
+            if (newHost && newHost.trim().length > 0) {
+                localStorage.setItem('cursorstrike_lan_host', newHost.trim());
+                if (this.ws) this.ws.close();
+                this.connectWebSocket(newHost.trim());
             }
-        };
+        });
+    }
+
+    connectWebSocket(overrideHost) {
+        if (this.ws) {
+            try { this.ws.close(); } catch(e) {}
+        }
+
+        const savedHost = localStorage.getItem('cursorstrike_lan_host');
+        let targetHost = overrideHost || savedHost || window.location.host;
+
+        if (!targetHost || targetHost.includes('github.io')) {
+            targetHost = '192.168.1.111:3000';
+        }
+
+        const isHttps = window.location.protocol === 'https:' && !targetHost.includes('192.168.') && !targetHost.includes('localhost') && !targetHost.includes('127.0.0.1');
+        const protocol = isHttps ? 'wss:' : 'ws:';
+        const wsUrl = targetHost.startsWith('ws://') || targetHost.startsWith('wss://') ? targetHost : `${protocol}//${targetHost}`;
+
+        this.statusText.setText(`CONNECTING TO ${targetHost}...`);
+        this.statusText.setColor('#FFFFF0');
+
+        try {
+            this.ws = new WebSocket(wsUrl);
+
+            this.ws.onopen = () => {
+                this.statusText.setText(`CONNECTED TO LAN SERVER (${targetHost})`);
+                this.statusText.setColor('#00FF00');
+                this.ws.send(JSON.stringify({ type: 'ENTER_LOBBY' }));
+            };
+
+            this.ws.onerror = () => {
+                this.statusText.setText(`LAN CONNECTION ERROR (${targetHost}) — CLICK 'CHANGE SERVER IP'`);
+                this.statusText.setColor('#FF3333');
+            };
+
+            this.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    this.handleServerMessage(data);
+                } catch (e) {
+                    console.error('Lobby WS error:', e);
+                }
+            };
+        } catch (e) {
+            this.statusText.setText(`CONNECTION FAILED (${targetHost}) — CLICK 'CHANGE SERVER IP'`);
+            this.statusText.setColor('#FF3333');
+        }
     }
 
     handleServerMessage(data) {
