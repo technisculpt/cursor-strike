@@ -4,7 +4,7 @@ export const level10 = {
   description: 'The ultimate test. Moving platforms, hazards, tight corridors, and a moving goal.',
   difficulty: 10,
   ballSpawn: { x: 100, y: 650 },
-  goal: { x: 1100, y: 180, width: 120, height: 60 },
+  goal: { x: 1100, y: 200, width: 120, height: 60 },
   terrain: [
     { type: 'rectangle', x: 100, y: 700, width: 200, height: 20, angle: 0, label: 'start_pad' },
     { type: 'rectangle', x: 400, y: 500, width: 150, height: 20, angle: -30, label: 'ramp_up' },
@@ -21,7 +21,7 @@ export const level10 = {
     { type: 'crusher', x: 900, y: 100, patrolPath: [{x: 900, y: 100}, {x: 900, y: 220}], speed: 5 }
   ],
   decorations: [
-    { type: 'flag', x: 1100, y: 130 }
+    { type: 'flag', x: 1100, y: 170 }
   ],
   par: 6,
   timeLimit: 90

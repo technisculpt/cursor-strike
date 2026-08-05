@@ -4,7 +4,7 @@ export const level7 = {
   description: 'Chaotic bumpers and angled walls create a pinball machine layout.',
   difficulty: 7,
   ballSpawn: { x: 640, y: 650 },
-  goal: { x: 640, y: 80, width: 120, height: 60 },
+  goal: { x: 640, y: 110, width: 120, height: 60 },
   terrain: [
     { type: 'rectangle', x: 640, y: 700, width: 1280, height: 40, angle: 0, label: 'ground' },
     { type: 'rectangle', x: 300, y: 500, width: 100, height: 20, angle: 30, label: 'bumper1' },
@@ -19,7 +19,7 @@ export const level7 = {
   movingPlatforms: [],
   hazards: [],
   decorations: [
-    { type: 'flag', x: 640, y: 60 }
+    { type: 'flag', x: 640, y: 80 }
   ],
   par: 5,
   timeLimit: 0

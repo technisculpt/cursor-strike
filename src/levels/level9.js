@@ -4,7 +4,7 @@ export const level9 = {
   description: 'A pure timing puzzle with multiple moving platforms.',
   difficulty: 9,
   ballSpawn: { x: 100, y: 600 },
-  goal: { x: 1150, y: 150, width: 80, height: 80 },
+  goal: { x: 1150, y: 160, width: 80, height: 60 },
   terrain: [
     { type: 'rectangle', x: 100, y: 650, width: 200, height: 20, angle: 0, label: 'start_platform' },
     { type: 'rectangle', x: 1150, y: 200, width: 200, height: 20, angle: 0, label: 'goal_platform' },
@@ -18,7 +18,9 @@ export const level9 = {
   hazards: [
     { type: 'spike', x: 640, y: 730, patrolPath: [{x: 0, y: 730}, {x: 1280, y: 730}], speed: 0 }
   ],
-  decorations: [],
+  decorations: [
+    { type: 'flag', x: 1150, y: 130 }
+  ],
   par: 5,
   timeLimit: 60
 };

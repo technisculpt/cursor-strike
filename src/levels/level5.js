@@ -4,7 +4,7 @@ export const level5 = {
   description: 'Time your strike to land on the moving platform and cross the gap.',
   difficulty: 5,
   ballSpawn: { x: 150, y: 500 },
-  goal: { x: 1100, y: 500, width: 100, height: 50 },
+  goal: { x: 1100, y: 505, width: 100, height: 50 },
   terrain: [
     { type: 'rectangle', x: 150, y: 550, width: 300, height: 40, angle: 0, label: 'start_platform' },
     { type: 'rectangle', x: 1100, y: 550, width: 300, height: 40, angle: 0, label: 'goal_platform' },

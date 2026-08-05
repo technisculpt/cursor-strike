@@ -4,7 +4,7 @@ export const level4 = {
   description: 'Strike the ball up a series of ascending platforms.',
   difficulty: 4,
   ballSpawn: { x: 100, y: 650 },
-  goal: { x: 1100, y: 100, width: 100, height: 50 },
+  goal: { x: 1100, y: 185, width: 100, height: 50 },
   terrain: [
     { type: 'rectangle', x: 100, y: 700, width: 300, height: 40, angle: 0, label: 'ground' },
     { type: 'rectangle', x: 350, y: 580, width: 150, height: 20, angle: 0, label: 'step_1' },
@@ -16,6 +16,7 @@ export const level4 = {
   movingPlatforms: [],
   hazards: [],
   decorations: [
+    { type: 'flag', x: 1100, y: 160 },
     { type: 'cloud', x: 400, y: 200 },
     { type: 'cloud', x: 800, y: 150 }
   ],

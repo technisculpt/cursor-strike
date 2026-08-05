@@ -192,6 +192,23 @@ export default class GamePlayScene extends Phaser.Scene {
             });
         }
 
+        // Click pointerdown listener: respawn ball at starting position
+        this.input.on('pointerdown', (pointer) => {
+            const menuLeft = this.scale.width - 140;
+            const menuTop = this.scale.height - 70;
+            if (pointer.x >= menuLeft && pointer.y >= menuTop) return;
+
+            if (this.ball && this.level.ballSpawn && !this.isLevelCompleted) {
+                this.matter.body.setPosition(this.ball, {
+                    x: this.level.ballSpawn.x,
+                    y: this.level.ballSpawn.y
+                });
+                this.matter.body.setVelocity(this.ball, { x: 0, y: 0 });
+                this.matter.body.setAngularVelocity(this.ball, 0);
+                audioManager.stopRolling();
+            }
+        });
+
         // Collisions
         this.matter.world.on('collisionstart', (event) => {
             if (this.isLevelCompleted) return;

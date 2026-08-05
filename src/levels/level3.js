@@ -4,7 +4,7 @@ export const level3 = {
   description: 'Ricochet the ball off angled walls to reach the goal.',
   difficulty: 3,
   ballSpawn: { x: 150, y: 600 },
-  goal: { x: 1050, y: 150, width: 80, height: 80 },
+  goal: { x: 950, y: 210, width: 80, height: 60 },
   terrain: [
     { type: 'rectangle', x: 640, y: 700, width: 1280, height: 40, angle: 0, label: 'ground' },
     { type: 'rectangle', x: 400, y: 500, width: 200, height: 20, angle: -45, label: 'bounce_wall_1' },
@@ -15,7 +15,7 @@ export const level3 = {
   movingPlatforms: [],
   hazards: [],
   decorations: [
-    { type: 'flag', x: 1050, y: 130 }
+    { type: 'flag', x: 950, y: 180 }
   ],
   par: 3,
   timeLimit: 0

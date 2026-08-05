@@ -4,7 +4,7 @@ export const level2 = {
     description: 'A longer approach with a steeper climb.',
     difficulty: 2,
     ballSpawn: { x: 100, y: 540 },
-    goal: { x: 1140, y: 120, width: 100, height: 60 },
+    goal: { x: 1140, y: 150, width: 100, height: 50 },
     terrain: [
         { type: 'rectangle', x: 300, y: 600, width: 600, height: 50, angle: 0, label: 'ground' },
         { 
@@ -21,7 +21,7 @@ export const level2 = {
     ],
     movingPlatforms: [],
     hazards: [],
-    decorations: [{ type: 'flag', x: 1140, y: 70 }],
+    decorations: [{ type: 'flag', x: 1140, y: 125 }],
     par: 2,
     timeLimit: 0
 };
