@@ -10,12 +10,19 @@ body {
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-#game-container {
+#game-container, canvas {
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
   border: 4px solid #5C4033;
   border-radius: 4px;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Optional HTML overlays if needed, but we're mostly using Canvas */

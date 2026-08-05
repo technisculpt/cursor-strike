@@ -25,7 +25,7 @@ export class CursorPhysics {
         this.lastStrikeTime = 0;
         this.customPointer = null;
 
-        // Global window listener: allows tracking mouse off-canvas on background
+        // Global window listener: allows tracking mouse & mobile touch off-canvas on background
         this.onWindowPointerMove = (e) => {
             const canvas = this.scene.game ? this.scene.game.canvas : null;
             if (!canvas) return;
@@ -40,13 +40,34 @@ export class CursorPhysics {
             }
         };
 
+        this.onWindowTouchMove = (e) => {
+            if (e.touches && e.touches.length > 0) {
+                const touch = e.touches[0];
+                const canvas = this.scene.game ? this.scene.game.canvas : null;
+                if (!canvas) return;
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    const scaleX = 1280 / rect.width;
+                    const scaleY = 720 / rect.height;
+                    this.customPointer = {
+                        x: (touch.clientX - rect.left) * scaleX,
+                        y: (touch.clientY - rect.top) * scaleY
+                    };
+                }
+            }
+        };
+
         window.addEventListener('pointermove', this.onWindowPointerMove);
         window.addEventListener('mousemove', this.onWindowPointerMove);
+        window.addEventListener('touchstart', this.onWindowTouchMove, { passive: false });
+        window.addEventListener('touchmove', this.onWindowTouchMove, { passive: false });
 
         // Cleanup on scene shutdown or destroy
         const removeListeners = () => {
             window.removeEventListener('pointermove', this.onWindowPointerMove);
             window.removeEventListener('mousemove', this.onWindowPointerMove);
+            window.removeEventListener('touchstart', this.onWindowTouchMove);
+            window.removeEventListener('touchmove', this.onWindowTouchMove);
         };
         this.scene.events.once('shutdown', removeListeners);
         this.scene.events.once('destroy', removeListeners);

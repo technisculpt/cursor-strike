@@ -1,0 +1,407 @@
+import { CursorPhysics, CATEGORY_ENVIRONMENT, CATEGORY_BALL, CATEGORY_CURSOR } from '../physics/CursorPhysics.js';
+import { ScrollworkRenderer } from '../ui/ScrollworkRenderer.js';
+import { audioManager } from '../audio/AudioManager.js';
+
+export default class MultiplayerGameScene extends Phaser.Scene {
+    constructor() {
+        super('MultiplayerGame');
+    }
+
+    create(data) {
+        this.ws = data.ws;
+        this.mode = data.mode || 'firstToX'; // 'firstToX' | 'timed'
+        this.target = data.target || 3;
+        this.role = this.ws ? (this.ws.role || 'P1') : 'P1';
+
+        const { width, height } = this.scale;
+
+        // Background
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(0x1B4332, 0x1B4332, 0x081C15, 0x081C15, 1);
+        bg.fillRect(0, 0, width, height);
+
+        // Scores
+        this.scores = { p1: 0, p2: 0 };
+        this.isMatchOver = false;
+
+        // Physics Setup
+        this.matter.world.setBounds(0, 0, width, height, 32, true, true, true, true);
+
+        // Solid Outer Borders
+        this.createOuterBorders(width, height);
+
+        // Defensive Center Platform (directly above ball spawn point to prevent 1-shot goals)
+        this.matter.add.rectangle(640, 460, 220, 30, {
+            isStatic: true,
+            collisionFilter: { category: CATEGORY_ENVIRONMENT, mask: CATEGORY_BALL },
+            friction: 0.3,
+            restitution: 0.5,
+            label: 'center_platform'
+        });
+
+        // P1 Goal (Red - Top Left)
+        this.p1GoalSensor = this.matter.add.rectangle(160, 115, 120, 50, {
+            isStatic: true,
+            isSensor: true,
+            label: 'p1_goal'
+        });
+
+        // P2 Goal (Blue - Top Right)
+        this.p2GoalSensor = this.matter.add.rectangle(1120, 115, 120, 50, {
+            isStatic: true,
+            isSensor: true,
+            label: 'p2_goal'
+        });
+
+        // Central White Ball (Radius 24px)
+        const radius = 24;
+        this.ball = this.matter.add.circle(640, 640, radius, {
+            restitution: 0.6,
+            friction: 0.05,
+            frictionAir: 0.001,
+            density: 0.05,
+            collisionFilter: {
+                category: CATEGORY_BALL,
+                mask: CATEGORY_ENVIRONMENT | CATEGORY_CURSOR
+            }
+        });
+        this.matter.body.setInertia(this.ball, 0.5 * this.ball.mass * radius * radius);
+
+        // Local Puck Physics
+        this.myPuck = new CursorPhysics(this);
+
+        // Opponent Puck Position
+        this.oppPuckPos = { x: this.role === 'P1' ? 1120 : 160, y: 640, vx: 0, vy: 0 };
+
+        // Graphics Layers
+        this.terrainGraphics = this.add.graphics().setDepth(10);
+        this.goalGraphics = this.add.graphics().setDepth(20);
+        this.ballGraphics = this.add.graphics().setDepth(30);
+        this.puckGraphics = this.add.graphics().setDepth(200);
+
+        // Draw Arena Graphics
+        this.drawArenaGraphics(width, height);
+
+        // HUD Setup
+        this.setupMultiplayerHUD(width);
+
+        // Setup WebSocket message handlers
+        this.setupWebSocketHandlers();
+
+        // Timed match countdown
+        if (this.mode === 'timed' && this.role === 'P1') {
+            this.matchTimer = this.time.addEvent({
+                delay: 1000,
+                repeat: this.target - 1,
+                callback: () => {
+                    this.target--;
+                    this.timerText.setText(`TIME: ${this.target}s`);
+                    if (this.target <= 0) {
+                        this.ws.send(JSON.stringify({ type: 'MATCH_TIME_EXPIRED' }));
+                    }
+                }
+            });
+        }
+    }
+
+    createOuterBorders(width, height) {
+        // Top, Bottom, Left, Right outer walls
+        const wallThickness = 40;
+        this.matter.add.rectangle(width / 2, wallThickness / 2, width, wallThickness, { isStatic: true, label: 'border' });
+        this.matter.add.rectangle(width / 2, height - wallThickness / 2, width, wallThickness, { isStatic: true, label: 'border' });
+        this.matter.add.rectangle(wallThickness / 2, height / 2, wallThickness, height, { isStatic: true, label: 'border' });
+        this.matter.add.rectangle(width - wallThickness / 2, height / 2, wallThickness, height, { isStatic: true, label: 'border' });
+    }
+
+    drawArenaGraphics(width, height) {
+        this.terrainGraphics.clear();
+        this.terrainGraphics.fillStyle(0x5C4033, 1);
+        
+        // Borders
+        this.terrainGraphics.fillRect(0, 0, width, 20);
+        this.terrainGraphics.fillRect(0, height - 20, width, 20);
+        this.terrainGraphics.fillRect(0, 0, 20, height);
+        this.terrainGraphics.fillRect(width - 20, 0, 20, height);
+
+        // Center Platform
+        this.terrainGraphics.fillRect(530, 445, 220, 30);
+
+        // P1 Goal (Red - Top Left)
+        this.goalGraphics.fillStyle(0xFF3333, 0.85);
+        this.goalGraphics.fillRect(100, 90, 120, 50);
+        this.goalGraphics.lineStyle(3, 0xFFD700, 1);
+        this.goalGraphics.strokeRect(100, 90, 120, 50);
+
+        // P2 Goal (Blue - Top Right)
+        this.goalGraphics.fillStyle(0x3388FF, 0.85);
+        this.goalGraphics.fillRect(1060, 90, 120, 50);
+        this.goalGraphics.lineStyle(3, 0xFFD700, 1);
+        this.goalGraphics.strokeRect(1060, 90, 120, 50);
+    }
+
+    setupMultiplayerHUD(width) {
+        const hudContainer = this.add.container(0, 0).setDepth(100);
+
+        // P1 Red Score Cartouche
+        const p1Frame = this.add.graphics();
+        ScrollworkRenderer.drawCartouche(p1Frame, 20, 20, 200, 50);
+        this.p1ScoreText = this.add.text(120, 45, 'P1 RED: 0', {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '18px',
+            color: '#FF3333'
+        }).setOrigin(0.5);
+
+        // P2 Blue Score Cartouche
+        const p2Frame = this.add.graphics();
+        ScrollworkRenderer.drawCartouche(p2Frame, width - 220, 20, 200, 50);
+        this.p2ScoreText = this.add.text(width - 120, 45, 'P2 BLUE: 0', {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '18px',
+            color: '#3388FF'
+        }).setOrigin(0.5);
+
+        // Center Info (Mode / Target)
+        const centerFrame = this.add.graphics();
+        ScrollworkRenderer.drawCartouche(centerFrame, width / 2 - 120, 20, 240, 50);
+        const modeLabel = this.mode === 'firstToX' ? `FIRST TO ${this.target}` : `TIME: ${this.target}s`;
+        this.timerText = this.add.text(width / 2, 45, modeLabel, {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '16px',
+            color: '#C9A84C'
+        }).setOrigin(0.5);
+
+        hudContainer.add([p1Frame, this.p1ScoreText, p2Frame, this.p2ScoreText, centerFrame, this.timerText]);
+    }
+
+    setupWebSocketHandlers() {
+        if (!this.ws) return;
+
+        this.ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                switch (data.type) {
+                    case 'PUCK_POS': {
+                        if (data.role !== this.role) {
+                            this.oppPuckPos.x = data.x;
+                            this.oppPuckPos.y = data.y;
+                            this.oppPuckPos.vx = data.vx;
+                            this.oppPuckPos.vy = data.vy;
+                        }
+                        break;
+                    }
+                    case 'BALL_STATE': {
+                        if (this.role === 'P2') {
+                            this.matter.body.setPosition(this.ball, { x: data.x, y: data.y });
+                            this.matter.body.setVelocity(this.ball, { x: data.vx, y: data.vy });
+                            this.matter.body.setAngle(this.ball, data.angle);
+                            this.matter.body.setAngularVelocity(this.ball, data.angularVelocity);
+                        }
+                        break;
+                    }
+                    case 'GOAL_SCORED': {
+                        this.scores = data.scores;
+                        this.p1ScoreText.setText(`P1 RED: ${this.scores.p1}`);
+                        this.p2ScoreText.setText(`P2 BLUE: ${this.scores.p2}`);
+                        audioManager.playGoalScored();
+                        this.resetBallToCenter();
+                        break;
+                    }
+                    case 'MATCH_OVER': {
+                        this.handleMatchOver(data.winner, data.scores);
+                        break;
+                    }
+                    case 'PLAYER_DISCONNECTED': {
+                        this.handleMatchOver(this.role, this.scores, 'OPPONENT DISCONNECTED');
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.error('Multiplayer WS error:', e);
+            }
+        };
+
+        // Collisions (P1 Host runs Goal detection)
+        if (this.role === 'P1') {
+            this.matter.world.on('collisionstart', (event) => {
+                if (this.isMatchOver) return;
+                for (let i = 0; i < event.pairs.length; i++) {
+                    const { bodyA, bodyB } = event.pairs[i];
+                    
+                    // Ball hits P1 Red Goal (Top Left) -> Goal for P2!
+                    if ((bodyA === this.p1GoalSensor && bodyB === this.ball) ||
+                        (bodyB === this.p1GoalSensor && bodyA === this.ball)) {
+                        this.ws.send(JSON.stringify({ type: 'SCORE_GOAL', scorer: 'P2' }));
+                        break;
+                    }
+
+                    // Ball hits P2 Blue Goal (Top Right) -> Goal for P1!
+                    if ((bodyA === this.p2GoalSensor && bodyB === this.ball) ||
+                        (bodyB === this.p2GoalSensor && bodyA === this.ball)) {
+                        this.ws.send(JSON.stringify({ type: 'SCORE_GOAL', scorer: 'P1' }));
+                        break;
+                    }
+                }
+            });
+        }
+    }
+
+    resetBallToCenter() {
+        this.matter.body.setPosition(this.ball, { x: 640, y: 640 });
+        this.matter.body.setVelocity(this.ball, { x: 0, y: 0 });
+        this.matter.body.setAngularVelocity(this.ball, 0);
+    }
+
+    update(time, delta) {
+        if (this.isMatchOver) return;
+
+        // Update local puck physics
+        const struck = this.myPuck.update(this.input.activePointer, this.ball);
+        if (struck) {
+            const speed = Math.sqrt(this.myPuck.vx**2 + this.myPuck.vy**2);
+            audioManager.playImpact(Math.min(Math.max(speed / 20, 0.4), 1));
+        }
+
+        // Broadcast local puck position to server
+        if (this.ws && this.ws.readyState === 1) {
+            const pos = this.myPuck.body.position;
+            this.ws.send(JSON.stringify({
+                type: 'SYNC_PUCK',
+                x: pos.x,
+                y: pos.y,
+                vx: this.myPuck.vx,
+                vy: this.myPuck.vy
+            }));
+
+            // P1 (Host) broadcasts authoritative ball physics
+            if (this.role === 'P1') {
+                this.ws.send(JSON.stringify({
+                    type: 'SYNC_BALL',
+                    x: this.ball.position.x,
+                    y: this.ball.position.y,
+                    vx: this.ball.velocity.x,
+                    vy: this.ball.velocity.y,
+                    angle: this.ball.angle,
+                    angularVelocity: this.ball.angularVelocity
+                }));
+            }
+        }
+
+        // Draw Central White Ball (Radius 24px)
+        const bx = this.ball.position.x;
+        const by = this.ball.position.y;
+        const angle = this.ball.angle;
+        this.ballGraphics.clear();
+        this.ballGraphics.fillStyle(0xFFFFFF, 1); // Pure White Ball
+        this.ballGraphics.fillCircle(bx, by, 24);
+        this.ballGraphics.lineStyle(2, 0xC9A84C, 1);
+        this.ballGraphics.strokeCircle(bx, by, 24);
+
+        // Rotation stripe line
+        this.ballGraphics.lineStyle(2.5, 0xFFD700, 1);
+        this.ballGraphics.beginPath();
+        this.ballGraphics.moveTo(bx + Math.cos(angle) * 4, by + Math.sin(angle) * 4);
+        this.ballGraphics.lineTo(bx + Math.cos(angle) * 18, by + Math.sin(angle) * 18);
+        this.ballGraphics.strokePath();
+
+        // Draw P1 (Red) and P2 (Blue) Pucks (12px radius)
+        this.puckGraphics.clear();
+
+        const p1X = this.role === 'P1' ? Math.max(12, Math.min(1268, this.myPuck.body.position.x)) : Math.max(12, Math.min(1268, this.oppPuckPos.x));
+        const p1Y = this.role === 'P1' ? Math.max(12, Math.min(708, this.myPuck.body.position.y)) : Math.max(12, Math.min(708, this.oppPuckPos.y));
+
+        const p2X = this.role === 'P2' ? Math.max(12, Math.min(1268, this.myPuck.body.position.x)) : Math.max(12, Math.min(1268, this.oppPuckPos.x));
+        const p2Y = this.role === 'P2' ? Math.max(12, Math.min(708, this.myPuck.body.position.y)) : Math.max(12, Math.min(708, this.oppPuckPos.y));
+
+        // P1 Red Puck
+        this.puckGraphics.fillStyle(0xFF3333, 1);
+        this.puckGraphics.fillCircle(p1X, p1Y, 12);
+        this.puckGraphics.lineStyle(2, 0xFFD700, 1);
+        this.puckGraphics.strokeCircle(p1X, p1Y, 12);
+
+        // P2 Blue Puck
+        this.puckGraphics.fillStyle(0x3388FF, 1);
+        this.puckGraphics.fillCircle(p2X, p2Y, 12);
+        this.puckGraphics.lineStyle(2, 0xFFD700, 1);
+        this.puckGraphics.strokeCircle(p2X, p2Y, 12);
+    }
+
+    handleMatchOver(winner, scores, customSub = '') {
+        this.isMatchOver = true;
+        const { width, height } = this.scale;
+
+        const overlay = this.add.container(width / 2, height / 2).setDepth(300);
+
+        const graphics = this.add.graphics();
+        ScrollworkRenderer.drawOrnateFrame(graphics, -250, -180, 500, 360, {
+            color: 0xC9A84C,
+            lineWidth: 4,
+            padding: 12,
+            bgColor: 0x081C15,
+            bgAlpha: 0.95
+        });
+        overlay.add(graphics);
+
+        let winTitle = 'DRAW MATCH!';
+        let winColor = '#C9A84C';
+        if (winner === 'P1') {
+            winTitle = 'PLAYER 1 (RED) VICTORY!';
+            winColor = '#FF3333';
+        } else if (winner === 'P2') {
+            winTitle = 'PLAYER 2 (BLUE) VICTORY!';
+            winColor = '#3388FF';
+        }
+
+        const titleText = this.add.text(0, -110, winTitle, {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '26px',
+            color: winColor
+        }).setOrigin(0.5);
+
+        const scoreSub = customSub || `FINAL SCORE: RED ${scores.p1} - ${scores.p2} BLUE`;
+        const subText = this.add.text(0, -50, scoreSub, {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '20px',
+            color: '#FFFFF0'
+        }).setOrigin(0.5);
+
+        overlay.add([titleText, subText]);
+
+        // Lobby Button
+        this.createOverlayButton(overlay, 0, 70, 'RETURN TO LOBBY', () => {
+            if (this.ws) this.ws.close();
+            this.scene.start('MultiplayerLobby');
+        });
+    }
+
+    createOverlayButton(parent, x, y, text, callback) {
+        const width = 240;
+        const height = 50;
+        const container = this.add.container(x, y);
+        container.setSize(width, height);
+        container.setInteractive({ useHandCursor: true });
+
+        const graphics = this.add.graphics();
+        ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+            color: 0xC9A84C,
+            lineWidth: 2,
+            padding: 4,
+            bgColor: 0x5C4033,
+            bgAlpha: 0.9
+        });
+
+        const btnText = this.add.text(0, 0, text, {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '18px',
+            color: '#FFFFF0'
+        }).setOrigin(0.5);
+
+        container.add([graphics, btnText]);
+
+        container.on('pointerup', () => {
+            audioManager.playUIClick();
+            callback();
+        });
+
+        parent.add(container);
+    }
+}

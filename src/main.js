@@ -3,6 +3,8 @@ import MainMenuScene from './scenes/MainMenuScene.js';
 import GamePlayScene from './scenes/GamePlayScene.js';
 import LevelSelectScene from './scenes/LevelSelectScene.js';
 import LevelCompleteScene from './scenes/LevelCompleteScene.js';
+import MultiplayerLobbyScene from './scenes/MultiplayerLobbyScene.js';
+import MultiplayerGameScene from './scenes/MultiplayerGameScene.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -10,6 +12,10 @@ const config = {
     height: 720,
     parent: 'game-container',
     backgroundColor: '#1a1a1a',
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    },
     physics: {
         default: 'matter',
         matter: {
@@ -17,7 +23,15 @@ const config = {
             debug: false
         }
     },
-    scene: [BootScene, MainMenuScene, LevelSelectScene, GamePlayScene, LevelCompleteScene]
+    scene: [
+        BootScene,
+        MainMenuScene,
+        LevelSelectScene,
+        GamePlayScene,
+        LevelCompleteScene,
+        MultiplayerLobbyScene,
+        MultiplayerGameScene
+    ]
 };
 
 const game = new Phaser.Game(config);
