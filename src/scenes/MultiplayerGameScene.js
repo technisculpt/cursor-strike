@@ -53,19 +53,9 @@ export default class MultiplayerGameScene extends Phaser.Scene {
             label: 'p2_goal'
         });
 
-        // Central White Ball (Radius 24px)
-        const radius = 24;
-        this.ball = this.matter.add.circle(640, 640, radius, {
-            restitution: 0.6,
-            friction: 0.05,
-            frictionAir: 0.001,
-            density: 0.05,
-            collisionFilter: {
-                category: CATEGORY_BALL,
-                mask: CATEGORY_ENVIRONMENT | CATEGORY_CURSOR
-            }
-        });
-        this.matter.body.setInertia(this.ball, 0.5 * this.ball.mass * radius * radius);
+        // No local ball body — ball is entirely server-authoritative.
+        // We only render ball from GAME_STATE (serverBallState).
+        // Removing local body prevents gravity/wall simulation noise affecting puck tracking.
 
         // Local Puck Physics
         this.myPuck = new CursorPhysics(this);
@@ -274,17 +264,39 @@ export default class MultiplayerGameScene extends Phaser.Scene {
         const p2X = this.role === 'P2' ? Math.max(12, Math.min(1268, localPos.x)) : Math.max(12, Math.min(1268, this.serverP2Puck.x));
         const p2Y = this.role === 'P2' ? Math.max(12, Math.min(708, localPos.y)) : Math.max(12, Math.min(708, this.serverP2Puck.y));
 
-        // P1 Red Puck
-        this.puckGraphics.fillStyle(0xFF3333, 1);
-        this.puckGraphics.fillCircle(p1X, p1Y, 12);
-        this.puckGraphics.lineStyle(2, 0xFFD700, 1);
-        this.puckGraphics.strokeCircle(p1X, p1Y, 12);
+        // Draw OPPONENT puck first (underneath own puck)
+        if (this.role === 'P1') {
+            // Draw P2 Blue (opponent) below
+            this.puckGraphics.fillStyle(0x3388FF, 1);
+            this.puckGraphics.fillCircle(p2X, p2Y, 12);
+            this.puckGraphics.lineStyle(3, 0xFFFFFF, 1);
+            this.puckGraphics.strokeCircle(p2X, p2Y, 12);
+            // Draw P1 Red (own) on top
+            this.puckGraphics.fillStyle(0xFF3333, 1);
+            this.puckGraphics.fillCircle(p1X, p1Y, 12);
+            this.puckGraphics.lineStyle(3, 0xFFD700, 1);
+            this.puckGraphics.strokeCircle(p1X, p1Y, 12);
+        } else {
+            // Draw P1 Red (opponent) below
+            this.puckGraphics.fillStyle(0xFF3333, 1);
+            this.puckGraphics.fillCircle(p1X, p1Y, 12);
+            this.puckGraphics.lineStyle(3, 0xFFFFFF, 1);
+            this.puckGraphics.strokeCircle(p1X, p1Y, 12);
+            // Draw P2 Blue (own) on top
+            this.puckGraphics.fillStyle(0x3388FF, 1);
+            this.puckGraphics.fillCircle(p2X, p2Y, 12);
+            this.puckGraphics.lineStyle(3, 0xFFD700, 1);
+            this.puckGraphics.strokeCircle(p2X, p2Y, 12);
+        }
 
-        // P2 Blue Puck
-        this.puckGraphics.fillStyle(0x3388FF, 1);
-        this.puckGraphics.fillCircle(p2X, p2Y, 12);
-        this.puckGraphics.lineStyle(2, 0xFFD700, 1);
-        this.puckGraphics.strokeCircle(p2X, p2Y, 12);
+        // Labels inside pucks: always update text positions
+        if (!this._puckLabelsCreated) {
+            this._p1Label = this.add.text(0, 0, '1', { fontFamily: 'Arial', fontSize: '10px', color: '#FFFFFF', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
+            this._p2Label = this.add.text(0, 0, '2', { fontFamily: 'Arial', fontSize: '10px', color: '#FFFFFF', fontStyle: 'bold' }).setOrigin(0.5).setDepth(201);
+            this._puckLabelsCreated = true;
+        }
+        this._p1Label.setPosition(p1X, p1Y);
+        this._p2Label.setPosition(p2X, p2Y);
     }
 
     handleMatchOver(winner, scores, customSub = '') {

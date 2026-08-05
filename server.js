@@ -94,71 +94,103 @@ function broadcastRoomList() {
 function startServerPhysicsRoom(room) {
     const engine = Engine.create();
     engine.gravity.x = 0;
-    engine.gravity.y = 1;
+    engine.gravity.y = 0.5;
     const world = engine.world;
 
     const width = 1280;
     const height = 720;
     const wallThickness = 40;
 
-    const topBorder = Bodies.rectangle(width / 2, wallThickness / 2, width, wallThickness, { isStatic: true });
-    const bottomBorder = Bodies.rectangle(width / 2, height - wallThickness / 2, width, wallThickness, { isStatic: true });
-    const leftBorder = Bodies.rectangle(wallThickness / 2, height / 2, wallThickness, height, { isStatic: true });
-    const rightBorder = Bodies.rectangle(width - wallThickness / 2, height / 2, wallThickness, height, { isStatic: true });
+    const borderOpts = { isStatic: true, restitution: 0.8, friction: 0 };
+    const topBorder    = Bodies.rectangle(width / 2, wallThickness / 2,          width,         wallThickness, borderOpts);
+    const bottomBorder = Bodies.rectangle(width / 2, height - wallThickness / 2, width,         wallThickness, borderOpts);
+    const leftBorder   = Bodies.rectangle(wallThickness / 2,          height / 2, wallThickness, height,        borderOpts);
+    const rightBorder  = Bodies.rectangle(width - wallThickness / 2,  height / 2, wallThickness, height,        borderOpts);
 
     const centerPlatform = Bodies.rectangle(640, 460, 220, 30, {
-        isStatic: true,
-        friction: 0.3,
-        restitution: 0.5
+        isStatic: true, restitution: 0.7, friction: 0.1
     });
 
     const p1Goal = Bodies.rectangle(160, 115, 120, 50, { isStatic: true, isSensor: true, label: 'p1_goal' });
     const p2Goal = Bodies.rectangle(1120, 115, 120, 50, { isStatic: true, isSensor: true, label: 'p2_goal' });
 
-    const ballRadius = 24;
-    const ball = Bodies.circle(640, 640, ballRadius, {
-        restitution: 0.6,
-        friction: 0.05,
-        frictionAir: 0.001,
+    const BALL_RADIUS = 24;
+    const ball = Bodies.circle(640, 640, BALL_RADIUS, {
+        restitution: 0.85,
+        friction: 0.02,
+        frictionAir: 0.002,
         density: 0.05,
         label: 'ball'
     });
-    Body.setInertia(ball, 0.5 * ball.mass * ballRadius * ballRadius);
+    Body.setInertia(ball, 0.5 * ball.mass * BALL_RADIUS * BALL_RADIUS);
 
-    // Pucks are solid (no isSensor) so they physically push the ball.
-    // High frictionAir + isStatic:false lets us kinematically drive them each tick.
-    const p1Puck = Bodies.circle(160, 640, 12, { isStatic: false, frictionAir: 1, mass: 100, label: 'p1_puck' });
-    const p2Puck = Bodies.circle(1120, 640, 12, { isStatic: false, frictionAir: 1, mass: 100, label: 'p2_puck' });
-    Body.setInertia(p1Puck, Infinity);
-    Body.setInertia(p2Puck, Infinity);
+    const PUCK_RADIUS = 12;
+    const p1Puck = Bodies.circle(160, 640, PUCK_RADIUS, { isStatic: true, isSensor: true, label: 'p1_puck' });
+    const p2Puck = Bodies.circle(1120, 640, PUCK_RADIUS, { isStatic: true, isSensor: true, label: 'p2_puck' });
 
     World.add(world, [
         topBorder, bottomBorder, leftBorder, rightBorder,
         centerPlatform, p1Goal, p2Goal, ball, p1Puck, p2Puck
     ]);
 
-    room.physics = { engine, world, ball, p1Puck, p2Puck, p1Goal, p2Goal };
+    room.physics = { engine, world, ball, p1Puck, p2Puck };
     room.isMatchOver = false;
-    // Store latest puck inputs from clients
     room.puckInput = {
-        p1: { x: 160, y: 640, vx: 0, vy: 0 },
-        p2: { x: 1120, y: 640, vx: 0, vy: 0 }
+        p1: { x: 160, y: 640 },
+        p2: { x: 1120, y: 640 }
     };
+    room.puckPrev = {
+        p1: { x: 160, y: 640 },
+        p2: { x: 1120, y: 640 }
+    };
+
+    const MIN_DIST = PUCK_RADIUS + BALL_RADIUS;
+
+    function applyPuckImpulse(inp, prev, puckBody) {
+        const puck_vx = inp.x - prev.x;
+        const puck_vy = inp.y - prev.y;
+
+        Body.setPosition(puckBody, { x: inp.x, y: inp.y });
+
+        const dx = ball.position.x - inp.x;
+        const dy = ball.position.y - inp.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < MIN_DIST && dist > 0) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const overlap = MIN_DIST - dist;
+
+            Body.setPosition(ball, {
+                x: ball.position.x + nx * overlap,
+                y: ball.position.y + ny * overlap
+            });
+
+            const speed = Math.sqrt(puck_vx * puck_vx + puck_vy * puck_vy);
+            const impulseVx = nx * Math.max(speed * 0.9, 6) + puck_vx * 0.4;
+            const impulseVy = ny * Math.max(speed * 0.9, 6) + puck_vy * 0.4;
+
+            Body.setVelocity(ball, {
+                x: ball.velocity.x * 0.2 + impulseVx * 0.8,
+                y: ball.velocity.y * 0.2 + impulseVy * 0.8
+            });
+
+            const torque = (puck_vx * ny - puck_vy * nx) * 0.05;
+            Body.setAngularVelocity(ball, torque);
+        }
+    }
 
     Events.on(engine, 'collisionStart', (event) => {
         if (room.isMatchOver) return;
         event.pairs.forEach((pair) => {
             const { bodyA, bodyB } = pair;
             let scorer = null;
-            if ((bodyA === p1Goal && bodyB === ball) || (bodyB === p1Goal && bodyA === ball)) {
-                scorer = 'P2';
-            } else if ((bodyA === p2Goal && bodyB === ball) || (bodyB === p2Goal && bodyA === ball)) {
-                scorer = 'P1';
-            }
+            if ((bodyA === p1Goal && bodyB === ball) || (bodyB === p1Goal && bodyA === ball)) scorer = 'P2';
+            else if ((bodyA === p2Goal && bodyB === ball) || (bodyB === p2Goal && bodyA === ball)) scorer = 'P1';
 
             if (scorer) {
                 if (scorer === 'P1') room.scores.p1++;
-                if (scorer === 'P2') room.scores.p2++;
+                else room.scores.p2++;
 
                 Body.setPosition(ball, { x: 640, y: 640 });
                 Body.setVelocity(ball, { x: 0, y: 0 });
@@ -183,10 +215,7 @@ function startServerPhysicsRoom(room) {
     if (room.mode === 'timed') {
         room.timerSeconds = room.target;
         room.timerEvent = setInterval(() => {
-            if (room.isMatchOver) {
-                clearInterval(room.timerEvent);
-                return;
-            }
+            if (room.isMatchOver) { clearInterval(room.timerEvent); return; }
             room.timerSeconds--;
             if (room.timerSeconds <= 0) {
                 room.isMatchOver = true;
@@ -205,22 +234,19 @@ function startServerPhysicsRoom(room) {
     room.gameLoop = setInterval(() => {
         if (room.isMatchOver) return;
 
-        // Kinematically drive pucks to mouse positions BEFORE physics step.
-        // The velocity we set is what imparts momentum into the ball on contact.
         const inp1 = room.puckInput.p1;
         const inp2 = room.puckInput.p2;
-        Body.setPosition(p1Puck, { x: inp1.x, y: inp1.y });
-        Body.setVelocity(p1Puck, { x: inp1.vx, y: inp1.vy });
-        Body.setPosition(p2Puck, { x: inp2.x, y: inp2.y });
-        Body.setVelocity(p2Puck, { x: inp2.vx, y: inp2.vy });
 
+        // Apply manual impulse (mirrors CursorPhysics.js exactly)
+        applyPuckImpulse(inp1, room.puckPrev.p1, p1Puck);
+        applyPuckImpulse(inp2, room.puckPrev.p2, p2Puck);
+
+        // Advance ball physics (gravity, wall bouncing, goal sensors)
         Engine.update(engine, 1000 / 60);
 
-        // After physics, re-lock puck positions again so they don't drift from ball impulse.
-        Body.setPosition(p1Puck, { x: inp1.x, y: inp1.y });
-        Body.setVelocity(p1Puck, { x: inp1.vx, y: inp1.vy });
-        Body.setPosition(p2Puck, { x: inp2.x, y: inp2.y });
-        Body.setVelocity(p2Puck, { x: inp2.vx, y: inp2.vy });
+        // Store previous puck positions for next-frame velocity calculation
+        room.puckPrev.p1 = { x: inp1.x, y: inp1.y };
+        room.puckPrev.p2 = { x: inp2.x, y: inp2.y };
 
         const gameStateMsg = JSON.stringify({
             type: 'GAME_STATE',
