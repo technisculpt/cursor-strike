@@ -40,13 +40,13 @@ export default class GamePlayScene extends Phaser.Scene {
             }
         });
 
-        // Graphics setup
-        this.decorationGraphics = this.add.graphics();
-        this.ballGraphics = this.add.graphics();
-        this.cursorGraphics = this.add.graphics();
-        this.terrainGraphics = this.add.graphics();
-        this.dynamicGraphics = this.add.graphics(); // for platforms/hazards
-        this.goalGraphics = this.add.graphics();
+        // Graphics setup with explicit depth ordering
+        this.decorationGraphics = this.add.graphics().setDepth(1);
+        this.terrainGraphics = this.add.graphics().setDepth(10);
+        this.dynamicGraphics = this.add.graphics().setDepth(20);
+        this.goalGraphics = this.add.graphics().setDepth(30);
+        this.ballGraphics = this.add.graphics().setDepth(40);
+        this.cursorGraphics = this.add.graphics().setDepth(200); // White striker puck rendered ON TOP of all platforms and obstacles!
 
         // Draw decorations
         if (this.level.decorations) {

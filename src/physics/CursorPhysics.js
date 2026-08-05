@@ -23,30 +23,58 @@ export class CursorPhysics {
         this.vx = 0;
         this.vy = 0;
         this.lastStrikeTime = 0;
+        this.customPointer = null;
+
+        // Global window listener: allows tracking mouse off-canvas on background
+        this.onWindowPointerMove = (e) => {
+            const canvas = this.scene.game ? this.scene.game.canvas : null;
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                const scaleX = 1280 / rect.width;
+                const scaleY = 720 / rect.height;
+                this.customPointer = {
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY
+                };
+            }
+        };
+
+        window.addEventListener('pointermove', this.onWindowPointerMove);
+        window.addEventListener('mousemove', this.onWindowPointerMove);
+
+        // Cleanup on scene shutdown or destroy
+        const removeListeners = () => {
+            window.removeEventListener('pointermove', this.onWindowPointerMove);
+            window.removeEventListener('mousemove', this.onWindowPointerMove);
+        };
+        this.scene.events.once('shutdown', removeListeners);
+        this.scene.events.once('destroy', removeListeners);
     }
 
     update(pointer, ballBody) {
-        if (!pointer) return false;
+        const activePointer = this.customPointer || pointer;
+        if (!activePointer) return false;
         
         if (this.prevX === 0 && this.prevY === 0) {
-            this.prevX = pointer.x;
-            this.prevY = pointer.y;
+            this.prevX = activePointer.x;
+            this.prevY = activePointer.y;
         }
 
-        this.vx = pointer.x - this.prevX;
-        this.vy = pointer.y - this.prevY;
+        this.vx = activePointer.x - this.prevX;
+        this.vy = activePointer.y - this.prevY;
         
-        this.scene.matter.body.setPosition(this.body, { x: pointer.x, y: pointer.y });
+        this.scene.matter.body.setPosition(this.body, { x: activePointer.x, y: activePointer.y });
 
-        this.prevX = pointer.x;
-        this.prevY = pointer.y;
+        this.prevX = activePointer.x;
+        this.prevY = activePointer.y;
 
         let strikeOccurred = false;
         if (ballBody) {
-            const ballRadius = ballBody.circleRadius || 16;
+            const ballRadius = ballBody.circleRadius || 24;
             const minDist = this.radius + ballRadius;
-            const dx = ballBody.position.x - pointer.x;
-            const dy = ballBody.position.y - pointer.y;
+            const dx = ballBody.position.x - activePointer.x;
+            const dy = ballBody.position.y - activePointer.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist < minDist) {
