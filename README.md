@@ -1,108 +1,106 @@
 # CursorStrike 🎯
 
-**CursorStrike** is an ornate 2D physics web game built with **Phaser 3** and **Matter.js**. The player's mouse acts as a physical cue-ball collider (a circle sensor) to strike a main ball up jump ramps, past dynamic obstacles, and into goals across 10 progressively challenging levels.
+[![Play Live on GitHub Pages](https://img.shields.io/badge/Play%20Live-GitHub%20Pages-00FF00?style=for-the-badge&logo=github)](https://technisculpt.github.io/cursor-strike/)
+
+**CursorStrike** is a Victorian & Art Nouveau 2D physics arcade web game built with **Phaser 3** and **Matter.js**. Use your mouse or mobile touch pointer as a physical striker puck to control, curve, and launch a white ball through obstacle-filled arenas and into ornate Golf Hole Cups.
 
 ---
 
-## 🌟 Key Features
-
-* **Physics Engine**: Mouse velocity tracking with throw-bias impulse and angular momentum ($I = \frac{1}{2} M r^2$).
-* **10 Progressive Levels**: Featuring jump ramps, moving platforms, static hazards, puzzle gates, and patrolling hazards.
-* **Victorian / Art Nouveau UI**: Custom vector scrollwork frame rendering with progress tracking and star rewards.
-* **Procedural Web Audio Engine**: Pure Web Audio API audio synthesis for cue strikes, wall impacts, rolling rumbles, goal chimes, and UI clicks.
-* **Local Network Play**: Host binding to `0.0.0.0:3000` for human play across devices on the same Wi-Fi / LAN.
+## 🎮 Play Live in Your Browser
+👉 **[https://technisculpt.github.io/cursor-strike/](https://technisculpt.github.io/cursor-strike/)**  
+*(No installation or downloads required — works on desktop, laptops, tablets, and mobile devices!)*
 
 ---
 
-## 🚀 Quick Start Guide
+## 🌟 Key Features & Physics Systems
 
-### Option 1: Node.js 20 LTS via NVM (Recommended)
+### ⚽ Soccer-Style Ball Control & Cushion Trapping
+* **Soft Trapping**: When your striker puck is resting or moving slowly (`puck speed < 2.0`), the ball cushions gently against the puck instead of popping away. This lets you trap rolling balls, gain control, and line up power shots!
+* **Power Strikes**: Flicking your mouse quickly imparts a high-impulse strike vector to launch the ball across the field.
 
-If you don't have Node.js or `npm` installed, we recommend using **NVM (Node Version Manager)** on Ubuntu:
+### 🌀 Magnus Aerodynamic Backspin Lift & Curves
+* **Spin Transfer**: Slicing the ball tangentially transfers rotational torque ($I = \frac{1}{2} M r^2$).
+* **Magnus Aerodynamics**: Backspin creates real aerodynamic lift counteracting gravity, allowing chip shots to float through the air or curve past obstacles like a soccer banana kick.
 
-#### 1. Install NVM
+### ⛳ Golf Hole Cup Goals
+* All rectangular flags are replaced with circular **Golf Hole Cups** featuring ornate brass rims (`#C9A84C`), inner dark cup depressions, glowing target rings, and vertical pin poles with pennants.
+* The ball must roll/land directly inside the 30px circular cup radius to trigger goal completion!
+
+---
+
+## 🕹️ Game Modes
+
+### 1. 🏆 20-Level Single-Player Campaign
+* 20 progressively challenging levels featuring jump ramps, moving platforms, puzzle gates, crusher hazards, and patrolling bird obstacles.
+* Earn up to 3 stars per level based on strike count and time.
+
+### 2. 🌐 Serverless Internet P2P Multiplayer (WebRTC)
+* **Play Anywhere**: Connect directly with friends anywhere on the web — zero server required!
+* **Short Share Codes**: Host generates a 5-character code (e.g., `cs-4k8x2`). Share the code over Discord or text, and your friend connects instantly.
+* **Peer-to-Peer DataChannel**: All game inputs and 60 FPS physics stream directly browser-to-browser via WebRTC (PeerJS).
+
+### 3. 🖥️ Cross-LAN Server Multiplayer (Optional)
+* Run `node server.js` to host a server-authoritative physics room for high-frequency low-latency play on your local Wi-Fi / LAN network.
+* **Smart Server Auto-Detection**: The web client automatically probes your local network and reveals the `MULTIPLAYER (LAN)` menu option when a local server is running!
+
+### 3 Symmetrical Arenas
+All multiplayer modes feature 3 100% fair and symmetrical maps:
+1. **Classic Defense**: Central barrier blocking direct 1-shot goals.
+2. **Pinball Bumper Alley**: Central archway and angled rubber bumpers for high-speed deflect shots.
+3. **Quad Pillar Gauntlet**: Symmetrical diamond obstacle and 4 interior pillars for tactical bank shots.
+
+---
+
+## 🚀 Local Development Setup
+
+### 1. Clone & Install Dependencies
 ```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+git clone https://github.com/technisculpt/cursor-strike.git
+cd cursor-strike
+npm install
 ```
 
-#### 2. Load NVM into your terminal session
+### 2. Run Vite Local Development Server
 ```bash
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 3. Build Production Web Bundle
+```bash
+npm run build
 ```
 
-#### 3. Install and set Node.js 20 LTS
+### 4. (Optional) Run Authoritative LAN Multiplayer Server
 ```bash
-nvm install 20
-nvm use 20
-```
-
-#### 4. Start the Server
-```bash
-npm start
-# or
 node server.js
 ```
 
 ---
 
-### Option 2: Instant Server (Zero Installation Required)
-
-Since Python 3 is pre-installed on Ubuntu, you can serve the game immediately without installing Node or `npm`:
-
-```bash
-python3 -m http.server 3000 --bind 0.0.0.0
-```
-
----
-
-## 🌐 Playing from Other Devices on Your Network
-
-Once the server is running, open a browser on any desktop, laptop, tablet, or phone on the same Wi-Fi / LAN network:
-
-* **Via IP Address**: `http://192.168.1.111:3000`
-* **Via Hostname**: `http://laptop:3000` *(or `http://laptop.local:3000`)*
-* **Via Localhost**: `http://localhost:3000`
-
----
-
-## 🛠️ Changing Your Ubuntu Hostname to `laptop`
-
-To change your computer's network name from `mark-hp` to `laptop` so you can type `http://laptop:3000` in any browser on your network, run the following commands in your Ubuntu terminal:
-
-```bash
-# 1. Update system hostname
-sudo hostnamectl set-hostname laptop
-
-# 2. Update local hosts mapping
-sudo sed -i 's/mark-hp/laptop/g' /etc/hosts
-
-# 3. Restart network discovery (optional, or reboot)
-sudo systemctl restart systemd-hostnamed
-```
-
-Once updated, devices on your network will be able to access the game at:
-```text
-http://laptop:3000   or   http://laptop.local:3000
-```
-
----
-
-## 📂 Project Structure
+## 📂 Project Architecture
 
 ```text
 cursor-strike/
-├── README.md               # Quick start & network access guide
-├── package.json            # npm scripts & dependency config
-├── server.js               # Standalone Node HTTP server (bound to 0.0.0.0:3000)
-├── index.html              # Main HTML entry point & canvas layout
-├── init_prompt.md          # 3-Tier Maker-Checker architecture prompt
+├── index.html              # Main HTML entry point & PeerJS / Phaser scripts
+├── package.json            # npm build scripts & dependencies
+├── server.js               # Node.js Matter.js server-authoritative physics server
 ├── src/
-│   ├── main.js             # Phaser 3 Game configuration
-│   ├── physics/            # Matter.js cue ball & cursor collider physics
-│   ├── levels/             # Levels 1 through 10 schemas & obstacle definitions
-│   ├── scenes/             # Boot, Main Menu, Level Select, GamePlay, & Level Complete
-│   ├── ui/                 # ScrollworkRenderer, HUD, and PauseMenu
-│   ├── audio/              # SoundSynthesizer, AudioManager, and sound effects
-│   └── styles/             # Global CSS styling
+│   ├── main.js             # Phaser 3 game configuration & scene registry
+│   ├── physics/
+│   │   ├── CursorPhysics.js  # Puck tracking, soft trapping, & torque transfer
+│   │   └── BallPhysics.js    # Cue ball creation & Magnus aerodynamic force
+│   ├── arenas/             # 3 Symmetrical multiplayer arena definitions
+│   ├── levels/             # 20 Single-player campaign level schemas
+│   ├── ui/
+│   │   ├── ScrollworkRenderer.js  # Ornate frames, cartouches, & Golf Hole Cups
+│   │   └── HUD.js          # Campaign cartouche scores, timers, & stars
+│   ├── audio/              # Web Audio API procedural sound synthesizer
+│   └── scenes/             # Boot, MainMenu, LevelSelect, GamePlay, P2PMultiplayer, LAN Lobby
 ```
+
+---
+
+## 📜 License
+
+Distributed under the MIT License. Built with Phaser 3 & Matter.js.

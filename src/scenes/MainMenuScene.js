@@ -54,13 +54,18 @@ export default class MainMenuScene extends Phaser.Scene {
             this.scene.start('P2PMultiplayer');
         });
 
-        this.createButton(width / 2, 480, 'MULTIPLAYER (LAN)', () => {
+        // MULTIPLAYER (LAN) button — hidden by default, shown only if local server detected
+        this.lanBtnContainer = this.createButton(width / 2, 480, 'MULTIPLAYER (LAN)', () => {
             this.scene.start('MultiplayerLobby');
         });
+        this.lanBtnContainer.setVisible(false);
 
         this.createButton(width / 2, 565, 'LEVEL SELECT', () => {
             this.scene.start('LevelSelect');
         });
+
+        // Smart LAN Server Probe
+        this.probeLanServer();
 
         // Corner flourishes
         const cornerGraphics = this.add.graphics();
@@ -70,6 +75,34 @@ export default class MainMenuScene extends Phaser.Scene {
         ScrollworkRenderer.drawCornerFlourish(cornerGraphics, width - 30, 30, cornerSize, Math.PI / 2); // TR
         ScrollworkRenderer.drawCornerFlourish(cornerGraphics, width - 30, height - 30, cornerSize, Math.PI); // BR
         ScrollworkRenderer.drawCornerFlourish(cornerGraphics, 30, height - 30, cornerSize, -Math.PI / 2); // BL
+    }
+
+    probeLanServer() {
+        const savedHost = localStorage.getItem('cursorstrike_lan_host');
+        let targetHost = savedHost || window.location.host;
+        if (!targetHost || targetHost.includes('github.io')) {
+            targetHost = 'localhost:3000';
+        }
+        const wsUrl = targetHost.startsWith('ws://') || targetHost.startsWith('wss://') ? targetHost : `ws://${targetHost}`;
+
+        try {
+            const ws = new WebSocket(wsUrl);
+            const timer = setTimeout(() => {
+                try { ws.close(); } catch(e) {}
+            }, 800);
+
+            ws.onopen = () => {
+                clearTimeout(timer);
+                try { ws.close(); } catch(e) {}
+                if (this.lanBtnContainer) {
+                    this.lanBtnContainer.setVisible(true);
+                }
+            };
+
+            ws.onerror = () => {
+                clearTimeout(timer);
+            };
+        } catch(e) {}
     }
 
     createButton(x, y, text, callback) {
@@ -112,5 +145,7 @@ export default class MainMenuScene extends Phaser.Scene {
             audioManager.playUIClick();
             callback();
         });
+
+        return btnContainer;
     }
 }
