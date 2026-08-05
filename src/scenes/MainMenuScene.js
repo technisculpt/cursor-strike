@@ -46,15 +46,19 @@ export default class MainMenuScene extends Phaser.Scene {
         ScrollworkRenderer.drawDivider(divGraphics, width / 2 - 150, 240, 300);
 
         // Buttons
-        this.createButton(width / 2, 340, 'PLAY CAMPAIGN', () => {
+        this.createButton(width / 2, 310, 'PLAY CAMPAIGN', () => {
             this.scene.start('GamePlay', { levelIndex: 0 });
         });
 
-        this.createButton(width / 2, 430, 'MULTIPLAYER (LAN)', () => {
+        this.createButton(width / 2, 395, 'PLAY ON INTERNET (P2P)', () => {
+            this.scene.start('P2PMultiplayer');
+        });
+
+        this.createButton(width / 2, 480, 'MULTIPLAYER (LAN)', () => {
             this.scene.start('MultiplayerLobby');
         });
 
-        this.createButton(width / 2, 520, 'LEVEL SELECT', () => {
+        this.createButton(width / 2, 565, 'LEVEL SELECT', () => {
             this.scene.start('LevelSelect');
         });
 

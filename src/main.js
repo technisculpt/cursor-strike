@@ -5,6 +5,8 @@ import LevelSelectScene from './scenes/LevelSelectScene.js';
 import LevelCompleteScene from './scenes/LevelCompleteScene.js';
 import MultiplayerLobbyScene from './scenes/MultiplayerLobbyScene.js';
 import MultiplayerGameScene from './scenes/MultiplayerGameScene.js';
+import P2PMultiplayerScene from './scenes/P2PMultiplayerScene.js';
+import P2PGameScene from './scenes/P2PGameScene.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -30,7 +32,9 @@ const config = {
         GamePlayScene,
         LevelCompleteScene,
         MultiplayerLobbyScene,
-        MultiplayerGameScene
+        MultiplayerGameScene,
+        P2PMultiplayerScene,
+        P2PGameScene
     ]
 };
 
