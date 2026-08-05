@@ -129,8 +129,9 @@ export class ScrollworkRenderer {
       rimColor = 0xC9A84C,       // Brass/gold rim
       cupColor = 0x07150B,       // Dark cup interior cutout
       pinColor = 0xFFD700,       // Gold pin pole
-      pennantColor = 0x00FF00,   // Flag pennant (Green, P1 Red, P2 Blue)
-      pulseAlpha = 1.0
+      pennantColor = 0x00FF00,   // Flag pennant (Red P1, Blue P2)
+      pulseAlpha = 1.0,
+      hasFlag = false            // Default false: no flag in campaign mode!
     } = options;
 
     const halfW = width / 2;
@@ -171,28 +172,28 @@ export class ScrollworkRenderer {
     graphics.fillCircle(x - halfW, y, 4);
     graphics.fillCircle(x + halfW, y, 4);
 
-    // 5. Single Pin Pole rising from bottom center of cup
-    const poleBottomY = y + height - 4;
-    const poleHeight = 55;
-    const poleTopY = y - poleHeight;
+    // 5. Flag pin pole & pennant flag (Only rendered in multiplayer when hasFlag is true!)
+    if (hasFlag) {
+      const poleBottomY = y + height - 4;
+      const poleHeight = 55;
+      const poleTopY = y - poleHeight;
 
-    graphics.lineStyle(3, pinColor, 1);
-    graphics.lineBetween(x, poleBottomY, x, poleTopY);
+      graphics.lineStyle(3, pinColor, 1);
+      graphics.lineBetween(x, poleBottomY, x, poleTopY);
 
-    // Pin base cap
-    graphics.fillStyle(pinColor, 1);
-    graphics.fillCircle(x, poleBottomY, 3);
+      graphics.fillStyle(pinColor, 1);
+      graphics.fillCircle(x, poleBottomY, 3);
 
-    // 6. Single Pennant Flag at top of pin
-    graphics.fillStyle(pennantColor, 1);
-    graphics.beginPath();
-    graphics.moveTo(x, poleTopY);
-    graphics.lineTo(x + 22, poleTopY + 8);
-    graphics.lineTo(x, poleTopY + 16);
-    graphics.closePath();
-    graphics.fillPath();
+      graphics.fillStyle(pennantColor, 1);
+      graphics.beginPath();
+      graphics.moveTo(x, poleTopY);
+      graphics.lineTo(x + 22, poleTopY + 8);
+      graphics.lineTo(x, poleTopY + 16);
+      graphics.closePath();
+      graphics.fillPath();
 
-    graphics.lineStyle(1.5, 0xFFD700, 1);
-    graphics.strokePath();
+      graphics.lineStyle(1.5, 0xFFD700, 1);
+      graphics.strokePath();
+    }
   }
 }

@@ -96,39 +96,33 @@ export default class P2PGameScene extends Phaser.Scene {
         });
         this.matter.body.setInertia(this.ball, 0.5 * this.ball.mass * BALL_RADIUS * BALL_RADIUS);
 
-        // Goal Collision Event
-        this.matter.world.on('collisionstart', (event) => {
-            if (this.isMatchOver) return;
-            event.pairs.forEach((pair) => {
-                const { bodyA, bodyB } = pair;
-                let scorer = null;
-                if ((bodyA === this.p1GoalSensor && bodyB === this.ball) || (bodyB === this.p1GoalSensor && bodyA === this.ball)) scorer = 'P2';
-                else if ((bodyA === this.p2GoalSensor && bodyB === this.ball) || (bodyB === this.p2GoalSensor && bodyA === this.ball)) scorer = 'P1';
+        // Remove instant collisionstart goal trigger — goals are now scored by dropping into U-cup and settling
+    }
 
-                if (scorer) {
-                    if (scorer === 'P1') this.scores.p1++;
-                    else this.scores.p2++;
+    handleGoalScored(scorer) {
+        if (this.isMatchOver) return;
 
-                    this.matter.body.setPosition(this.ball, { x: 640, y: 640 });
-                    this.matter.body.setVelocity(this.ball, { x: 0, y: 0 });
-                    this.matter.body.setAngularVelocity(this.ball, 0);
+        if (scorer === 'P1') this.scores.p1++;
+        else this.scores.p2++;
 
-                    audioManager.playGoalScored();
-                    this.p1ScoreText.setText(`P1 RED: ${this.scores.p1}`);
-                    this.p2ScoreText.setText(`P2 BLUE: ${this.scores.p2}`);
+        this.matter.body.setPosition(this.ball, { x: 640, y: 640 });
+        this.matter.body.setVelocity(this.ball, { x: 0, y: 0 });
+        this.matter.body.setAngularVelocity(this.ball, 0);
 
-                    if (this.conn) {
-                        this.conn.send({ type: 'GOAL_SCORED', scorer, scores: this.scores });
-                    }
+        audioManager.playGoalScored();
+        this.p1ScoreText.setText(`P1 RED: ${this.scores.p1}`);
+        this.p2ScoreText.setText(`P2 BLUE: ${this.scores.p2}`);
 
-                    if (this.mode === 'firstToX' && (this.scores.p1 >= this.target || this.scores.p2 >= this.target)) {
-                        const winner = this.scores.p1 >= this.target ? 'P1' : 'P2';
-                        this.handleMatchOver(winner, this.scores);
-                        if (this.conn) this.conn.send({ type: 'MATCH_OVER', winner, scores: this.scores });
-                    }
-                }
-            });
-        });
+        if (this.conn) {
+            this.conn.send({ type: 'GOAL_SCORED', scorer, scores: this.scores });
+        }
+
+        if (this.mode === 'firstToX' && (this.scores.p1 >= this.target || this.scores.p2 >= this.target)) {
+            const winner = this.scores.p1 >= this.target ? 'P1' : 'P2';
+            this.handleMatchOver(winner, this.scores);
+            if (this.conn) this.conn.send({ type: 'MATCH_OVER', winner, scores: this.scores });
+        }
+    }
 
         // Timed match countdown on Host
         if (this.mode === 'timed') {
@@ -293,12 +287,14 @@ export default class P2PGameScene extends Phaser.Scene {
         ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 160, 115, 60, 40, {
             rimColor: 0xC9A84C,
             pennantColor: 0xFF3333,
-            pulseAlpha: 0.9
+            pulseAlpha: 0.9,
+            hasFlag: true
         });
         ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, 1120, 115, 60, 40, {
             rimColor: 0xC9A84C,
             pennantColor: 0x3388FF,
-            pulseAlpha: 0.9
+            pulseAlpha: 0.9,
+            hasFlag: true
         });
     }
 
@@ -373,6 +369,33 @@ export default class P2PGameScene extends Phaser.Scene {
 
             // Apply Magnus aerodynamic spin force (backspin lift & curve)
             applyMagnusEffect(this.ball, this.matter.body);
+
+            // Check Golf Hole Cup Settlement: Ball must drop inside U-pocket and settle at low speed
+            if (this.ball) {
+                const ballSpeed = Math.sqrt(this.ball.velocity.x**2 + this.ball.velocity.y**2);
+
+                // P1 Goal Cup (Top Left: 160, 115) -> P2 Scores
+                if (Math.abs(this.ball.position.x - 160) < 22 && this.ball.position.y >= 120 && this.ball.position.y <= 160) {
+                    if (ballSpeed < 3.0) {
+                        this.p1HoleSettle = (this.p1HoleSettle || 0) + delta;
+                        if (this.p1HoleSettle >= 200) {
+                            this.p1HoleSettle = 0;
+                            this.handleGoalScored('P2');
+                        }
+                    } else { this.p1HoleSettle = 0; }
+                } else { this.p1HoleSettle = 0; }
+
+                // P2 Goal Cup (Top Right: 1120, 115) -> P1 Scores
+                if (Math.abs(this.ball.position.x - 1120) < 22 && this.ball.position.y >= 120 && this.ball.position.y <= 160) {
+                    if (ballSpeed < 3.0) {
+                        this.p2HoleSettle = (this.p2HoleSettle || 0) + delta;
+                        if (this.p2HoleSettle >= 200) {
+                            this.p2HoleSettle = 0;
+                            this.handleGoalScored('P1');
+                        }
+                    } else { this.p2HoleSettle = 0; }
+                } else { this.p2HoleSettle = 0; }
+            }
 
             if (this.ball) {
                 this.serverBallState = {

@@ -208,37 +208,29 @@ function startServerPhysicsRoom(room) {
         }
     }
 
-    Events.on(engine, 'collisionStart', (event) => {
+    function handleServerGoal(room, scorer, ball) {
         if (room.isMatchOver) return;
-        event.pairs.forEach((pair) => {
-            const { bodyA, bodyB } = pair;
-            let scorer = null;
-            if ((bodyA === p1Goal && bodyB === ball) || (bodyB === p1Goal && bodyA === ball)) scorer = 'P2';
-            else if ((bodyA === p2Goal && bodyB === ball) || (bodyB === p2Goal && bodyA === ball)) scorer = 'P1';
 
-            if (scorer) {
-                if (scorer === 'P1') room.scores.p1++;
-                else room.scores.p2++;
+        if (scorer === 'P1') room.scores.p1++;
+        else room.scores.p2++;
 
-                Body.setPosition(ball, { x: 640, y: 640 });
-                Body.setVelocity(ball, { x: 0, y: 0 });
-                Body.setAngularVelocity(ball, 0);
+        Body.setPosition(ball, { x: 640, y: 640 });
+        Body.setVelocity(ball, { x: 0, y: 0 });
+        Body.setAngularVelocity(ball, 0);
 
-                const goalMsg = JSON.stringify({ type: 'GOAL_SCORED', scorer, scores: room.scores });
-                if (room.p1 && room.p1.readyState === 1) room.p1.send(goalMsg);
-                if (room.p2 && room.p2.readyState === 1) room.p2.send(goalMsg);
+        const goalMsg = JSON.stringify({ type: 'GOAL_SCORED', scorer, scores: room.scores });
+        if (room.p1 && room.p1.readyState === 1) room.p1.send(goalMsg);
+        if (room.p2 && room.p2.readyState === 1) room.p2.send(goalMsg);
 
-                if (room.mode === 'firstToX' && (room.scores.p1 >= room.target || room.scores.p2 >= room.target)) {
-                    room.isMatchOver = true;
-                    const winner = room.scores.p1 >= room.target ? 'P1' : 'P2';
-                    const overMsg = JSON.stringify({ type: 'MATCH_OVER', winner, scores: room.scores });
-                    if (room.p1 && room.p1.readyState === 1) room.p1.send(overMsg);
-                    if (room.p2 && room.p2.readyState === 1) room.p2.send(overMsg);
-                    if (room.gameLoop) clearInterval(room.gameLoop);
-                }
-            }
-        });
-    });
+        if (room.mode === 'firstToX' && (room.scores.p1 >= room.target || room.scores.p2 >= room.target)) {
+            room.isMatchOver = true;
+            const winner = room.scores.p1 >= room.target ? 'P1' : 'P2';
+            const overMsg = JSON.stringify({ type: 'MATCH_OVER', winner, scores: room.scores });
+            if (room.p1 && room.p1.readyState === 1) room.p1.send(overMsg);
+            if (room.p2 && room.p2.readyState === 1) room.p2.send(overMsg);
+            if (room.gameLoop) clearInterval(room.gameLoop);
+        }
+    }
 
     if (room.mode === 'timed') {
         room.timerSeconds = room.target;
@@ -282,7 +274,32 @@ function startServerPhysicsRoom(room) {
             });
         }
 
-        // Advance ball physics (gravity, wall bouncing, goal sensors)
+        // Check Golf Hole Cup Settlement: Ball must drop inside U-pocket and settle at low speed
+        const ballSpeed = Math.sqrt(ball.velocity.x**2 + ball.velocity.y**2);
+
+        // P1 Goal Cup (Top Left: 160, 115) -> P2 Scores
+        if (Math.abs(ball.position.x - 160) < 22 && ball.position.y >= 120 && ball.position.y <= 160) {
+            if (ballSpeed < 3.0) {
+                room.p1HoleSettle = (room.p1HoleSettle || 0) + 1;
+                if (room.p1HoleSettle >= 15) { // ~250ms at 60 FPS
+                    room.p1HoleSettle = 0;
+                    handleServerGoal(room, 'P2', ball);
+                }
+            } else { room.p1HoleSettle = 0; }
+        } else { room.p1HoleSettle = 0; }
+
+        // P2 Goal Cup (Top Right: 1120, 115) -> P1 Scores
+        if (Math.abs(ball.position.x - 1120) < 22 && ball.position.y >= 120 && ball.position.y <= 160) {
+            if (ballSpeed < 3.0) {
+                room.p2HoleSettle = (room.p2HoleSettle || 0) + 1;
+                if (room.p2HoleSettle >= 15) { // ~250ms at 60 FPS
+                    room.p2HoleSettle = 0;
+                    handleServerGoal(room, 'P1', ball);
+                }
+            } else { room.p2HoleSettle = 0; }
+        } else { room.p2HoleSettle = 0; }
+
+        // Advance ball physics (gravity, wall bouncing)
         Engine.update(engine, 1000 / 60);
 
         // Store previous puck positions for next-frame velocity calculation

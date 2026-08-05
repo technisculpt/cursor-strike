@@ -226,14 +226,6 @@ export default class GamePlayScene extends Phaser.Scene {
                     }
                 }
 
-                // Ball hits goal
-                if ((bodyA === this.goalSensor && bodyB === this.ball) ||
-                    (bodyB === this.goalSensor && bodyA === this.ball)) {
-                    audioManager.playGoalScored();
-                    this.handleLevelComplete();
-                    break;
-                }
-
                 // Ball hits hazard
                 if ((bodyA.label === 'hazard' && bodyB === this.ball) ||
                     (bodyB.label === 'hazard' && bodyA === this.ball)) {
@@ -258,7 +250,8 @@ export default class GamePlayScene extends Phaser.Scene {
                 ScrollworkRenderer.drawGolfHoleGoal(this.goalGraphics, this.level.goal.x, this.level.goal.y, 60, 40, {
                     rimColor: 0xC9A84C,
                     pennantColor: 0x00FF00,
-                    pulseAlpha: alpha
+                    pulseAlpha: alpha,
+                    hasFlag: false // Single player: no flag! Clean U-shaped cup cutout in platform
                 });
             }
         });
@@ -275,6 +268,27 @@ export default class GamePlayScene extends Phaser.Scene {
                 const speed = Math.sqrt(this.cursorPhysics.vx**2 + this.cursorPhysics.vy**2);
                 audioManager.playImpact(Math.min(Math.max(speed / 20, 0.4), 1));
             }
+        }
+
+        // Golf Hole Cup Settlement Check: Ball must drop inside U-pocket and settle at low speed
+        const gx = this.level.goal.x;
+        const gy = this.level.goal.y;
+        const ballDistX = Math.abs(this.ball.position.x - gx);
+        const ballInCupY = (this.ball.position.y >= gy + 5) && (this.ball.position.y <= gy + 45);
+
+        if (ballDistX < 20 && ballInCupY) {
+            const ballSpeed = Math.sqrt(this.ball.velocity.x**2 + this.ball.velocity.y**2);
+            if (ballSpeed < 3.0) {
+                this.holeSettleTime = (this.holeSettleTime || 0) + delta;
+                if (this.holeSettleTime >= 200) {
+                    audioManager.playGoalScored();
+                    this.handleLevelComplete();
+                }
+            } else {
+                this.holeSettleTime = 0;
+            }
+        } else {
+            this.holeSettleTime = 0;
         }
 
         // Draw ball & rotation indicator (showing rotational physics spin I = 1/2 M r^2)
