@@ -25,29 +25,47 @@ export default class LevelSelectScene extends Phaser.Scene {
       color: '#C9A84C'
     }).setOrigin(0.5);
 
-    // Progression from localStorage
-    let unlockedLevels = 1;
+    this.currentPage = 0; // Page 0: Levels 1-10, Page 1: Levels 11-20
+    this.unlockedLevels = 1;
     try {
-      unlockedLevels = parseInt(localStorage.getItem('cursorstrike_unlocked') || '1', 10);
+      this.unlockedLevels = parseInt(localStorage.getItem('cursorstrike_unlocked') || '1', 10);
     } catch (e) {
-      unlockedLevels = 1;
+      this.unlockedLevels = 1;
     }
 
-    // Grid config
+    this.gridContainer = this.add.container(0, 0);
+
+    this.renderPage();
+
+    // Back Button
+    this.createBackButton(80, height - 50);
+
+    // Page Navigation Buttons
+    this.createPageNavButtons(width, height);
+  }
+
+  renderPage() {
+    this.gridContainer.removeAll(true);
+    const { width } = this.scale;
+
     const rows = 2;
     const cols = 5;
     const cardWidth = 180;
     const cardHeight = 220;
     const startX = (width - (cols * cardWidth + (cols - 1) * 30)) / 2;
-    const startY = 180;
+    const startY = 170;
+
+    const startLevelNum = this.currentPage * 10 + 1;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const levelNum = r * cols + c + 1;
+        const levelNum = startLevelNum + (r * cols + c);
+        if (levelNum > levels.length) break;
+
         const x = startX + c * (cardWidth + 30);
-        const y = startY + r * (cardHeight + 40);
+        const y = startY + r * (cardHeight + 35);
         
-        const isLocked = levelNum > unlockedLevels;
+        const isLocked = levelNum > this.unlockedLevels;
         let stars = 0;
         try {
           stars = parseInt(localStorage.getItem(`cursorstrike_stars_${levelNum - 1}`) || '0', 10);
@@ -58,15 +76,78 @@ export default class LevelSelectScene extends Phaser.Scene {
         const levelData = levels[levelNum - 1];
         const levelName = levelData ? levelData.name : `Level ${levelNum}`;
 
-        this.createLevelCard(x, y, cardWidth, cardHeight, levelNum, levelName, stars, isLocked);
+        this.createLevelCard(this.gridContainer, x, y, cardWidth, cardHeight, levelNum, levelName, stars, isLocked);
       }
     }
 
-    // Back Button
-    this.createBackButton(80, height - 50);
+    if (this.pageText) {
+      this.pageText.setText(`PAGE ${this.currentPage + 1} / 2`);
+    }
   }
 
-  createLevelCard(x, y, width, height, levelNum, name, stars, isLocked) {
+  createPageNavButtons(width, height) {
+    // Page indicator
+    this.pageText = this.add.text(width / 2, height - 50, `PAGE ${this.currentPage + 1} / 2`, {
+      fontFamily: '"Cinzel", serif',
+      fontSize: '20px',
+      color: '#C9A84C'
+    }).setOrigin(0.5);
+
+    // Prev Button
+    this.createNavButton(width / 2 - 160, height - 50, '◀ PREV', () => {
+      if (this.currentPage > 0) {
+        this.currentPage--;
+        this.renderPage();
+      }
+    });
+
+    // Next Button
+    this.createNavButton(width / 2 + 160, height - 50, 'NEXT ▶', () => {
+      if (this.currentPage < 1) {
+        this.currentPage++;
+        this.renderPage();
+      }
+    });
+  }
+
+  createNavButton(x, y, text, callback) {
+    const width = 110;
+    const height = 44;
+    const container = this.add.container(x, y);
+    container.setSize(width, height);
+    container.setInteractive({ useHandCursor: true });
+
+    const graphics = this.add.graphics();
+    ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+      color: 0xC9A84C,
+      lineWidth: 2,
+      padding: 4,
+      bgColor: 0x5C4033,
+      bgAlpha: 0.8
+    });
+
+    const btnText = this.add.text(0, 0, text, {
+      fontFamily: '"Cinzel", serif',
+      fontSize: '16px',
+      color: '#FFFFF0'
+    }).setOrigin(0.5);
+
+    container.add([graphics, btnText]);
+
+    container.on('pointerover', () => {
+      audioManager.playUIHover();
+      btnText.setTint(0xC9A84C);
+    });
+    container.on('pointerout', () => {
+      btnText.clearTint();
+    });
+    container.on('pointerup', () => {
+      audioManager.playUIClick();
+      callback();
+    });
+  }
+
+  createLevelCard(parent, x, y, width, height, levelNum, name, stars, isLocked) {
     const container = this.add.container(x + width/2, y + height/2);
     container.setSize(width, height);
     
@@ -143,6 +224,7 @@ export default class LevelSelectScene extends Phaser.Scene {
     }
 
     container.add(elements);
+    if (parent) parent.add(container);
   }
 
   createBackButton(x, y) {

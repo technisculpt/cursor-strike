@@ -1,28 +1,24 @@
 export const level10 = {
   id: 10,
-  name: 'Final Strike',
-  description: 'The ultimate test. Moving platforms, hazards, tight corridors, and a moving goal.',
+  name: 'The Pendulum',
+  description: 'Time your strike past swinging hazards to reach the central elevator.',
   difficulty: 10,
-  ballSpawn: { x: 100, y: 650 },
-  goal: { x: 1100, y: 200, width: 120, height: 60 },
+  ballSpawn: { x: 120, y: 640 },
+  goal: { x: 1100, y: 200, width: 100, height: 50 },
   terrain: [
-    { type: 'rectangle', x: 100, y: 700, width: 200, height: 20, angle: 0, label: 'start_pad' },
-    { type: 'rectangle', x: 400, y: 500, width: 150, height: 20, angle: -30, label: 'ramp_up' },
-    { type: 'rectangle', x: 750, y: 200, width: 20, height: 300, angle: 0, label: 'blocker_wall' },
-    { type: 'rectangle', x: 1100, y: 240, width: 200, height: 20, angle: 0, label: 'goal_platform' },
-    { type: 'rectangle', x: 1100, y: 700, width: 1280, height: 40, angle: 0, label: 'floor' }
+    { type: 'rectangle', x: 150, y: 700, width: 300, height: 40, angle: 0, label: 'start_pad' },
+    { type: 'rectangle', x: 1100, y: 240, width: 250, height: 30, angle: 0, label: 'goal_platform' }
   ],
   movingPlatforms: [
-    { x: 600, y: 350, width: 80, height: 20, path: [{x: 600, y: 350}, {x: 600, y: 150}], speed: 2, label: 'lift' },
-    { x: 900, y: 250, width: 120, height: 20, path: [{x: 850, y: 250}, {x: 1000, y: 250}], speed: 4, label: 'horizontal_ferry' }
+    { x: 550, y: 550, width: 120, height: 20, path: [{x: 550, y: 550}, {x: 550, y: 250}], speed: 2.5, label: 'elevator' }
   ],
   hazards: [
-    { type: 'bird', x: 450, y: 400, patrolPath: [{x: 450, y: 400}, {x: 450, y: 200}], speed: 4 },
-    { type: 'crusher', x: 900, y: 100, patrolPath: [{x: 900, y: 100}, {x: 900, y: 220}], speed: 5 }
+    { type: 'bird', x: 380, y: 400, patrolPath: [{x: 380, y: 300}, {x: 380, y: 600}], speed: 3.5 },
+    { type: 'bird', x: 720, y: 350, patrolPath: [{x: 720, y: 250}, {x: 720, y: 550}], speed: 3.5 }
   ],
   decorations: [
-    { type: 'flag', x: 1100, y: 170 }
+    { type: 'flag', x: 1100, y: 175 }
   ],
-  par: 6,
-  timeLimit: 90
+  par: 3,
+  timeLimit: 40
 };
