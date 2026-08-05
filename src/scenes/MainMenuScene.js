@@ -50,7 +50,7 @@ export default class MainMenuScene extends Phaser.Scene {
             this.scene.start('GamePlay', { levelIndex: 0 });
         });
 
-        this.createButton(width / 2, 395, 'PLAY ON INTERNET (P2P)', () => {
+        this.createButton(width / 2, 395, 'MULTIPLAYER (P2P)', () => {
             this.scene.start('P2PMultiplayer');
         });
 
@@ -90,7 +90,7 @@ export default class MainMenuScene extends Phaser.Scene {
 
         const btnText = this.add.text(0, 0, text, {
             fontFamily: '"Cinzel", serif',
-            fontSize: '28px',
+            fontSize: '24px',
             color: '#FFFFF0',
             letterSpacing: 2
         }).setOrigin(0.5);

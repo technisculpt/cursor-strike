@@ -42,11 +42,11 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         // Join Game Panel (Right Side)
         this.createJoinPanel(680, 150, 500, 480);
 
-        // Back Button
+        // Back Button in top left header
+        this.createBackButton(100, 65);
+
         // Status & Change LAN IP button
         this.createIpConfigUI(width);
-
-        this.connectWebSocket();
     }
 
     createIpConfigUI(width) {
@@ -54,7 +54,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         const defaultHost = savedHost || (window.location.host.includes('github.io') ? '192.168.1.111:3000' : window.location.host);
 
         // Change Server IP button
-        this.createOptionButton(this, width - 150, 115, 'CHANGE SERVER IP', false, () => {
+        this.createOptionButton(this, width - 150, 65, 'CHANGE SERVER IP', false, () => {
             const newHost = prompt('Enter LAN Server IP & Port (e.g. 192.168.1.111:3000 or laptop:3000):', defaultHost);
             if (newHost && newHost.trim().length > 0) {
                 localStorage.setItem('cursorstrike_lan_host', newHost.trim());
@@ -216,10 +216,33 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
     }
 
     updateModeButtons() {
-        if (this.selectedMode === 'firstToX') {
+        const isFirst = this.selectedMode === 'firstToX';
+        if (isFirst) {
             this.rulesText.setText('P1 (Red Top-Left) vs P2 (Blue Top-Right)\nFirst to 3 Goals wins!');
         } else {
             this.rulesText.setText('P1 (Red Top-Left) vs P2 (Blue Top-Right)\nHighest score in 30 Seconds wins!');
+        }
+
+        this.redrawOptionButton(this.btnFirstToX, 'FIRST TO 3 GOALS', isFirst);
+        this.redrawOptionButton(this.btnTimed, '30S TIMED MATCH', !isFirst);
+    }
+
+    redrawOptionButton(btnContainer, text, isSelected) {
+        if (!btnContainer || !btnContainer.list) return;
+        const graphics = btnContainer.list[0];
+        const btnText = btnContainer.list[1];
+        if (graphics && btnText) {
+            graphics.clear();
+            const width = 180;
+            const height = 45;
+            ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+                color: isSelected ? 0x00FF00 : 0xC9A84C,
+                lineWidth: isSelected ? 3 : 2,
+                padding: 4,
+                bgColor: isSelected ? 0x1B4332 : 0x081C15,
+                bgAlpha: 0.95
+            });
+            btnText.setColor(isSelected ? '#00FF00' : '#FFFFF0');
         }
     }
 
@@ -327,9 +350,9 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         const graphics = this.add.graphics();
         ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
             color: isSelected ? 0x00FF00 : 0xC9A84C,
-            lineWidth: 2,
+            lineWidth: isSelected ? 3 : 2,
             padding: 4,
-            bgColor: 0x081C15,
+            bgColor: isSelected ? 0x1B4332 : 0x081C15,
             bgAlpha: 0.9
         });
 
@@ -341,7 +364,21 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
 
         btnContainer.add([graphics, btnText]);
 
+        btnContainer.on('pointerover', () => {
+            audioManager.playUIHover();
+            this.tweens.add({ targets: btnContainer, scaleX: 1.04, scaleY: 1.04, duration: 100 });
+        });
+
+        btnContainer.on('pointerout', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 100 });
+        });
+
+        btnContainer.on('pointerdown', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 0.95, scaleY: 0.95, duration: 80 });
+        });
+
         btnContainer.on('pointerup', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1.04, scaleY: 1.04, duration: 80 });
             audioManager.playUIClick();
             callback();
         });
@@ -381,11 +418,20 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
         btnContainer.on('pointerover', () => {
             audioManager.playUIHover();
             btnText.setColor('#00FF00');
+            this.tweens.add({ targets: btnContainer, scaleX: 1.05, scaleY: 1.05, duration: 100 });
         });
+
         btnContainer.on('pointerout', () => {
             btnText.setColor('#FFFFF0');
+            this.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 100 });
         });
+
+        btnContainer.on('pointerdown', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 0.95, scaleY: 0.95, duration: 80 });
+        });
+
         btnContainer.on('pointerup', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1.05, scaleY: 1.05, duration: 80 });
             audioManager.playUIClick();
             callback();
         });
@@ -394,7 +440,7 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
     }
 
     createBackButton(x, y) {
-        const width = 140;
+        const width = 150;
         const height = 45;
         const container = this.add.container(x, y);
         container.setSize(width, height);
@@ -406,16 +452,31 @@ export default class MultiplayerLobbyScene extends Phaser.Scene {
             lineWidth: 2,
             padding: 4,
             bgColor: 0x5C4033,
-            bgAlpha: 0.8
+            bgAlpha: 0.9
         });
 
-        const text = this.add.text(0, 0, 'LEAVE LOBBY', {
+        const text = this.add.text(0, 0, '◀ MAIN MENU', {
             fontFamily: '"Cinzel", serif',
-            fontSize: '16px',
+            fontSize: '15px',
             color: '#FFFFF0'
         }).setOrigin(0.5);
 
         container.add([graphics, text]);
+
+        container.on('pointerover', () => {
+            audioManager.playUIHover();
+            text.setColor('#00FF00');
+            this.tweens.add({ targets: container, scaleX: 1.05, scaleY: 1.05, duration: 100 });
+        });
+
+        container.on('pointerout', () => {
+            text.setColor('#FFFFF0');
+            this.tweens.add({ targets: container, scaleX: 1, scaleY: 1, duration: 100 });
+        });
+
+        container.on('pointerdown', () => {
+            this.tweens.add({ targets: container, scaleX: 0.95, scaleY: 0.95, duration: 80 });
+        });
 
         container.on('pointerup', () => {
             audioManager.playUIClick();

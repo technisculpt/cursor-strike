@@ -103,10 +103,27 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
     }
 
     updateModeButtons() {
-        if (this.btnFirstTo3 && this.btnTimed30) {
-            const isFirst = this.mode === 'firstToX';
-            this.btnFirstTo3.list[1].setColor(isFirst ? '#00FF00' : '#FFFFF0');
-            this.btnTimed30.list[1].setColor(!isFirst ? '#00FF00' : '#FFFFF0');
+        const isFirst = this.mode === 'firstToX';
+        this.redrawOptionButton(this.btnFirstTo3, 'FIRST TO 3', isFirst);
+        this.redrawOptionButton(this.btnTimed30, '30s TIMED', !isFirst);
+    }
+
+    redrawOptionButton(btnContainer, text, isSelected) {
+        if (!btnContainer || !btnContainer.list) return;
+        const graphics = btnContainer.list[0];
+        const btnText = btnContainer.list[1];
+        if (graphics && btnText) {
+            graphics.clear();
+            const width = 180;
+            const height = 40;
+            ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
+                color: isSelected ? 0x00FF00 : 0xC9A84C,
+                lineWidth: isSelected ? 3 : 2,
+                padding: 4,
+                bgColor: isSelected ? 0x1B4332 : 0x081C15,
+                bgAlpha: 0.95
+            });
+            btnText.setColor(isSelected ? '#00FF00' : '#FFFFF0');
         }
     }
 
@@ -261,10 +278,10 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
 
         const graphics = this.add.graphics();
         ScrollworkRenderer.drawOrnateFrame(graphics, -width/2, -height/2, width, height, {
-            color: 0xC9A84C,
-            lineWidth: 2,
+            color: isSelected ? 0x00FF00 : 0xC9A84C,
+            lineWidth: isSelected ? 3 : 2,
             padding: 4,
-            bgColor: 0x081C15,
+            bgColor: isSelected ? 0x1B4332 : 0x081C15,
             bgAlpha: 0.9
         });
 
@@ -276,7 +293,21 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
 
         btnContainer.add([graphics, btnText]);
 
+        btnContainer.on('pointerover', () => {
+            audioManager.playUIHover();
+            this.tweens.add({ targets: btnContainer, scaleX: 1.04, scaleY: 1.04, duration: 100 });
+        });
+
+        btnContainer.on('pointerout', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 100 });
+        });
+
+        btnContainer.on('pointerdown', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 0.95, scaleY: 0.95, duration: 80 });
+        });
+
         btnContainer.on('pointerup', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1.04, scaleY: 1.04, duration: 80 });
             audioManager.playUIClick();
             callback();
         });
@@ -313,13 +344,28 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
 
         btnContainer.add([graphics, btnText]);
 
+        btnContainer.on('pointerover', () => {
+            audioManager.playUIHover();
+            btnText.setColor('#00FF00');
+            this.tweens.add({ targets: btnContainer, scaleX: 1.05, scaleY: 1.05, duration: 100 });
+        });
+
+        btnContainer.on('pointerout', () => {
+            btnText.setColor('#FFFFF0');
+            this.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 100 });
+        });
+
+        btnContainer.on('pointerdown', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 0.95, scaleY: 0.95, duration: 80 });
+        });
+
         btnContainer.on('pointerup', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 1.05, scaleY: 1.05, duration: 80 });
             audioManager.playUIClick();
             callback();
         });
 
         parent.add(btnContainer);
-        return btnContainer;
     }
 
     createNavButton(x, y, text, callback) {
@@ -343,6 +389,21 @@ export default class P2PMultiplayerScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         btnContainer.add([graphics, btnText]);
+
+        btnContainer.on('pointerover', () => {
+            audioManager.playUIHover();
+            btnText.setColor('#00FF00');
+            this.tweens.add({ targets: btnContainer, scaleX: 1.05, scaleY: 1.05, duration: 100 });
+        });
+
+        btnContainer.on('pointerout', () => {
+            btnText.setColor('#FFFFF0');
+            this.tweens.add({ targets: btnContainer, scaleX: 1, scaleY: 1, duration: 100 });
+        });
+
+        btnContainer.on('pointerdown', () => {
+            this.tweens.add({ targets: btnContainer, scaleX: 0.95, scaleY: 0.95, duration: 80 });
+        });
 
         btnContainer.on('pointerup', () => {
             audioManager.playUIClick();
