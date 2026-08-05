@@ -96,7 +96,26 @@ export default class P2PGameScene extends Phaser.Scene {
         });
         this.matter.body.setInertia(this.ball, 0.5 * this.ball.mass * BALL_RADIUS * BALL_RADIUS);
 
-        // Remove instant collisionstart goal trigger — goals are now scored by dropping into U-cup and settling
+        // Timed match countdown on Host
+        if (this.mode === 'timed') {
+            this.timerSeconds = this.target;
+            this.matchTimer = this.time.addEvent({
+                delay: 1000,
+                repeat: this.target - 1,
+                callback: () => {
+                    if (this.isMatchOver) return;
+                    this.timerSeconds--;
+                    this.timerText.setText(`TIME: ${this.timerSeconds}s`);
+                    if (this.timerSeconds <= 0) {
+                        let winner = 'DRAW';
+                        if (this.scores.p1 > this.scores.p2) winner = 'P1';
+                        else if (this.scores.p2 > this.scores.p1) winner = 'P2';
+                        this.handleMatchOver(winner, this.scores);
+                        if (this.conn) this.conn.send({ type: 'MATCH_OVER', winner, scores: this.scores });
+                    }
+                }
+            });
+        }
     }
 
     handleGoalScored(scorer) {
@@ -121,28 +140,6 @@ export default class P2PGameScene extends Phaser.Scene {
             const winner = this.scores.p1 >= this.target ? 'P1' : 'P2';
             this.handleMatchOver(winner, this.scores);
             if (this.conn) this.conn.send({ type: 'MATCH_OVER', winner, scores: this.scores });
-        }
-    }
-
-        // Timed match countdown on Host
-        if (this.mode === 'timed') {
-            this.timerSeconds = this.target;
-            this.matchTimer = this.time.addEvent({
-                delay: 1000,
-                repeat: this.target - 1,
-                callback: () => {
-                    if (this.isMatchOver) return;
-                    this.timerSeconds--;
-                    this.timerText.setText(`TIME: ${this.timerSeconds}s`);
-                    if (this.timerSeconds <= 0) {
-                        let winner = 'DRAW';
-                        if (this.scores.p1 > this.scores.p2) winner = 'P1';
-                        else if (this.scores.p2 > this.scores.p1) winner = 'P2';
-                        this.handleMatchOver(winner, this.scores);
-                        if (this.conn) this.conn.send({ type: 'MATCH_OVER', winner, scores: this.scores });
-                    }
-                }
-            });
         }
     }
 

@@ -218,7 +218,7 @@ export default class GamePlayScene extends Phaser.Scene {
                 
                 // Ball hits terrain wall
                 const isBallCollision = (bodyA === this.ball || bodyB === this.ball);
-                const isNotCursorOrGoal = (bodyA !== this.cursorPhysics.body && bodyB !== this.cursorPhysics.body && bodyA !== this.goalSensor && bodyB !== this.goalSensor && bodyA.label !== 'hazard' && bodyB.label !== 'hazard');
+                const isNotCursorOrGoal = (bodyA !== this.cursorPhysics.body && bodyB !== this.cursorPhysics.body && bodyA.label !== 'goal' && bodyB.label !== 'goal' && bodyA.label !== 'hazard' && bodyB.label !== 'hazard');
                 if (isBallCollision && isNotCursorOrGoal) {
                     const ballVel = Math.sqrt(this.ball.velocity.x**2 + this.ball.velocity.y**2);
                     if (ballVel > 1) {
