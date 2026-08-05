@@ -2,6 +2,7 @@ import { CursorPhysics, CATEGORY_ENVIRONMENT, CATEGORY_BALL } from '../physics/C
 import { createBall } from '../physics/BallPhysics.js';
 import { levels } from '../levels/index.js';
 import { HUD } from '../ui/HUD.js';
+import { ScrollworkRenderer } from '../ui/ScrollworkRenderer.js';
 import { audioManager } from '../audio/AudioManager.js';
 
 export default class GamePlayScene extends Phaser.Scene {
