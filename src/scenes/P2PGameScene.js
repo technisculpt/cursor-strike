@@ -1,4 +1,5 @@
 import { CursorPhysics } from '../physics/CursorPhysics.js';
+import { applyMagnusEffect } from '../physics/BallPhysics.js';
 import { ScrollworkRenderer } from '../ui/ScrollworkRenderer.js';
 import { audioManager } from '../audio/AudioManager.js';
 
@@ -160,18 +161,28 @@ export default class P2PGameScene extends Phaser.Scene {
                 y: this.ball.position.y + ny * overlap
             });
 
-            // Calculate impulse velocity transfer
-            const speed = Math.sqrt(puckVel.vx * puckVel.vx + puckVel.vy * puck_vy);
-            const impulseVx = nx * Math.max(speed * 0.9, 6) + puckVel.vx * 0.4;
-            const impulseVy = ny * Math.max(speed * 0.9, 6) + puckVel.vy * 0.4;
+            const speed = Math.sqrt(puckVel.vx * puckVel.vx + puckVel.vy * puckVel.vy);
 
-            this.matter.body.setVelocity(this.ball, {
-                x: this.ball.velocity.x * 0.2 + impulseVx * 0.8,
-                y: this.ball.velocity.y * 0.2 + impulseVy * 0.8
-            });
+            if (speed < 2.0) {
+                // Soft Trap / Cushion: absorb ball bounce when puck is still or moving slowly
+                const trapDamping = 0.25;
+                this.matter.body.setVelocity(this.ball, {
+                    x: this.ball.velocity.x * trapDamping + puckVel.vx * 0.5,
+                    y: this.ball.velocity.y * trapDamping + puckVel.vy * 0.5
+                });
+            } else {
+                // Fast strike: powerful impulse kick + backspin torque
+                const impulseVx = nx * (speed * 1.1) + puckVel.vx * 0.5;
+                const impulseVy = ny * (speed * 1.1) + puckVel.vy * 0.5;
 
-            const torque = (puckVel.vx * ny - puckVel.vy * nx) * 0.05;
-            this.matter.body.setAngularVelocity(this.ball, torque);
+                this.matter.body.setVelocity(this.ball, {
+                    x: this.ball.velocity.x * 0.15 + impulseVx * 0.85,
+                    y: this.ball.velocity.y * 0.15 + impulseVy * 0.85
+                });
+
+                const torque = (puckVel.vx * ny - puckVel.vy * nx) * 0.12;
+                this.matter.body.setAngularVelocity(this.ball, torque);
+            }
         }
     }
 
@@ -318,6 +329,9 @@ export default class P2PGameScene extends Phaser.Scene {
             // Apply manual impulses for P1 and P2 pucks on host ball
             this.applyImpulseToBall(this.p1PuckPos, { vx: this.p1PuckPos.vx, vy: this.p1PuckPos.vy });
             this.applyImpulseToBall(this.p2PuckPos, { vx: this.p2PuckPos.vx, vy: this.p2PuckPos.vy });
+
+            // Apply Magnus aerodynamic spin force (backspin lift & curve)
+            applyMagnusEffect(this.ball, this.matter.body);
 
             if (this.ball) {
                 this.serverBallState = {

@@ -1,3 +1,5 @@
+import { applyMagnusEffect } from './BallPhysics.js';
+
 export const CATEGORY_ENVIRONMENT = 0x0001;
 export const CATEGORY_BALL = 0x0002;
 export const CATEGORY_CURSOR = 0x0004;
@@ -114,25 +116,38 @@ export class CursorPhysics {
                 const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                 const now = this.scene.time ? this.scene.time.now : Date.now();
 
-                // Impulse velocity transfer
-                const targetVx = nx * Math.max(speed * 0.9, 6) + this.vx * 0.4;
-                const targetVy = ny * Math.max(speed * 0.9, 6) + this.vy * 0.4;
+                if (speed < 2.0) {
+                    // Soft Trap / Cushion: when puck is stationary or moving slowly, absorb ball bounce so player can control it
+                    const trapDamping = 0.25;
+                    this.scene.matter.body.setVelocity(ballBody, {
+                        x: ballBody.velocity.x * trapDamping + this.vx * 0.5,
+                        y: ballBody.velocity.y * trapDamping + this.vy * 0.5
+                    });
+                } else {
+                    // Fast Strike: powerful impulse kick + backspin torque
+                    const targetVx = nx * (speed * 1.1) + this.vx * 0.5;
+                    const targetVy = ny * (speed * 1.1) + this.vy * 0.5;
 
-                this.scene.matter.body.setVelocity(ballBody, {
-                    x: ballBody.velocity.x * 0.2 + targetVx * 0.8,
-                    y: ballBody.velocity.y * 0.2 + targetVy * 0.8
-                });
+                    this.scene.matter.body.setVelocity(ballBody, {
+                        x: ballBody.velocity.x * 0.15 + targetVx * 0.85,
+                        y: ballBody.velocity.y * 0.15 + targetVy * 0.85
+                    });
 
-                // Apply spin / torque
-                const torque = (this.vx * ny - this.vy * nx) * 0.05;
-                this.scene.matter.body.setAngularVelocity(ballBody, torque);
+                    // Enhanced backspin / topspin torque transfer based on strike tangential velocity
+                    const tangentialVel = (this.vx * ny - this.vy * nx);
+                    const spinTorque = tangentialVel * 0.12;
+                    this.scene.matter.body.setAngularVelocity(ballBody, spinTorque);
 
-                if (now - this.lastStrikeTime > 200) {
-                    this.lastStrikeTime = now;
-                    strikeOccurred = true;
+                    if (now - this.lastStrikeTime > 200) {
+                        this.lastStrikeTime = now;
+                        strikeOccurred = true;
+                    }
                 }
             }
         }
+
+        // Apply aerodynamic Magnus effect to ball
+        applyMagnusEffect(ballBody, this.scene.matter.body);
 
         return strikeOccurred;
     }

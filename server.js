@@ -167,16 +167,27 @@ function startServerPhysicsRoom(room) {
             });
 
             const speed = Math.sqrt(puck_vx * puck_vx + puck_vy * puck_vy);
-            const impulseVx = nx * Math.max(speed * 0.9, 6) + puck_vx * 0.4;
-            const impulseVy = ny * Math.max(speed * 0.9, 6) + puck_vy * 0.4;
 
-            Body.setVelocity(ball, {
-                x: ball.velocity.x * 0.2 + impulseVx * 0.8,
-                y: ball.velocity.y * 0.2 + impulseVy * 0.8
-            });
+            if (speed < 2.0) {
+                // Soft Trap / Cushion: absorb ball bounce when puck is still or slow
+                const trapDamping = 0.25;
+                Body.setVelocity(ball, {
+                    x: ball.velocity.x * trapDamping + puck_vx * 0.5,
+                    y: ball.velocity.y * trapDamping + puck_vy * 0.5
+                });
+            } else {
+                // Fast strike: powerful impulse kick + backspin torque
+                const impulseVx = nx * (speed * 1.1) + puck_vx * 0.5;
+                const impulseVy = ny * (speed * 1.1) + puck_vy * 0.5;
 
-            const torque = (puck_vx * ny - puck_vy * nx) * 0.05;
-            Body.setAngularVelocity(ball, torque);
+                Body.setVelocity(ball, {
+                    x: ball.velocity.x * 0.15 + impulseVx * 0.85,
+                    y: ball.velocity.y * 0.15 + impulseVy * 0.85
+                });
+
+                const torque = (puck_vx * ny - puck_vy * nx) * 0.12;
+                Body.setAngularVelocity(ball, torque);
+            }
         }
     }
 
@@ -240,6 +251,19 @@ function startServerPhysicsRoom(room) {
         // Apply manual impulse (mirrors CursorPhysics.js exactly)
         applyPuckImpulse(inp1, room.puckPrev.p1, p1Puck);
         applyPuckImpulse(inp2, room.puckPrev.p2, p2Puck);
+
+        // Apply Magnus aerodynamic force (backspin lift & curve)
+        const omega = ball.angularVelocity || 0;
+        const vx = ball.velocity.x || 0;
+        const vy = ball.velocity.y || 0;
+        const speed = Math.sqrt(vx * vx + vy * vy);
+        if (Math.abs(omega) > 0.005 && speed > 0.5) {
+            const kMagnus = 0.00035;
+            Body.applyForce(ball, ball.position, {
+                x: -kMagnus * omega * vy,
+                y: kMagnus * omega * vx
+            });
+        }
 
         // Advance ball physics (gravity, wall bouncing, goal sensors)
         Engine.update(engine, 1000 / 60);
